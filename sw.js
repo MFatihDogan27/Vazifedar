@@ -1,14 +1,14 @@
 // Vazifedar service worker: uygulamayı çevrimdışı (ve yerel sunucu kapalıyken) açılabilir kılar.
 // Strateji: önce ağ (sunucu/internet varsa her zaman en yeni dosyalar), olmazsa son kaydedilen kopya.
 // Yeni bir dosya eklenirse SHELL listesine de ekle (eklenmese bile ilk çevrimiçi açılışta önbelleğe girer).
-const VERSION = '2026-10-11';
+const VERSION = '2026-10-12';
 const CACHE = `vazifedar-${VERSION}`;
 const FONTS = 'vazifedar-fonts';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'icon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png', 'icons/apple-touch-icon.png',
   'css/style.css', 'css/takvim.css',
-  'js/app.js', 'js/backup.js', 'js/calendar.js', 'js/courses.js', 'js/dates.js', 'js/forms.js', 'js/google.js',
+  'js/app.js', 'js/backup.js', 'js/calendar.js', 'js/cloud.js', 'js/courses.js', 'js/dates.js', 'js/forms.js', 'js/google.js',
   'js/hicri.js', 'js/icons.js', 'js/journal.js', 'js/notes.js', 'js/notify.js', 'js/prayer.js', 'js/pwa.js',
   'js/qa-ui.js', 'js/quickadd.js', 'js/recurrence.js', 'js/settings.js', 'js/store.js', 'js/tasks.js',
   'js/term.js', 'js/theme.js', 'js/themes.js', 'js/today.js', 'js/ui.js',

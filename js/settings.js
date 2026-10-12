@@ -35,7 +35,7 @@ function googleSection(rerender) {
     h('summary', {}, 'Google bağlantısı nasıl kurulur? (bir kerelik, ~5 dakika)'),
     h('ol', {},
       h('li', {}, h('a', { href: 'https://console.cloud.google.com/projectcreate', target: '_blank', rel: 'noopener' }, 'Google Cloud Console'), '\'da yeni bir proje oluştur (ör. "Vazifedar").'),
-      h('li', {}, h('a', { href: 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com', target: '_blank', rel: 'noopener' }, 'Google Calendar API'), '\'yi etkinleştir.'),
+      h('li', {}, h('a', { href: 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com', target: '_blank', rel: 'noopener' }, 'Google Calendar API'), '\'yi ve ', h('a', { href: 'https://console.cloud.google.com/apis/library/drive.googleapis.com', target: '_blank', rel: 'noopener' }, 'Google Drive API'), '\'yi etkinleştir (Drive, görevlerin ve ders programının cihazlar arasında eşitlenmesi için).'),
       h('li', {}, '"Google Auth Platform" (OAuth izin ekranı) bölümünde uygulamayı "External" olarak yapılandır; "Audience / Test users" kısmına kendi Gmail adresini ekle.'),
       h('li', {}, '"Clients" (Kimlik bilgileri) bölümünde yeni bir ', h('strong', {}, 'OAuth istemci kimliği'), ' oluştur, tür: "Web application".'),
       h('li', {}, '"Authorized JavaScript origins" alanına şunu ekle: ', h('code', {}, origin)),
@@ -63,6 +63,7 @@ function googleSection(rerender) {
         sel.value = s.autoSyncMin; sel.onchange = () => { s.autoSyncMin = Number(sel.value); commit('settings'); };
         return sel;
       })())) : null,
+    connected ? cloudBlock(rerender) : null,
     connected ? h('div', { class: 'row' }, h('button', {
       class: 'btn small ghost', onclick: () => { const n = G.markAllLocalForSync(); toast(n ? `${n} plan Google'a gönderilecek` : 'Gönderilmemiş plan yok'); },
     }, 'Google\'a gönderilmemiş planları da gönder')) : null,
@@ -285,6 +286,26 @@ function prayerSection(rerender) {
       offs));
 }
 
+// Görevler, ders programı, notlar, defter: Google Drive'daki gizli uygulama klasörü üzerinden eşitleme
+function cloudBlock(rerender) {
+  const s = state.settings;
+  const cs = G.getCloudStatus();
+  const on = G.cloudEnabled();
+  const box = h('input', { type: 'checkbox', checked: on });
+  box.onchange = () => { s.cloudSync = box.checked; commit('settings'); if (box.checked) G.sync({ interactive: true, cloudOnly: true }).then(() => rerender()); else rerender(); };
+  let line;
+  if (!on) line = h('span', { class: 'muted small' }, 'Kapalı: görevler, ders programı, notlar ve defter yalnız bu cihazda kalır.');
+  else if (cs.state === 'error' || cs.state === 'needs-auth') line = h('span', { class: 'warn-text small' }, cs.message);
+  else if (G.needsConsent()) line = h('span', { class: 'warn-text small' }, 'Bir kez "Yeniden bağlan"a bas: Google, Drive iznini de soracak.');
+  else line = h('span', { class: 'muted small' }, s.cloudLastSync ? `Son eşitleme: ${new Date(s.cloudLastSync).toLocaleString('tr-TR')}` : 'Henüz eşitlenmedi.');
+  return h('div', { class: 'cloud-block' },
+    h('label', { class: 'check' }, box, h('span', {}, 'Görevleri, ders programını, devamsızlığı, unutma notlarını ve defteri de cihazlar arasında eşitle')),
+    h('p', { class: 'muted small' }, 'Bu veriler Google Drive\'ında yalnız Vazifedar\'ın görebildiği gizli bir uygulama klasöründe tutulur (Drive\'da dosya olarak görünmez). Aynı Google hesabıyla bağlanan her cihaz (bilgisayar, telefon, tablet) aynı verileri görür.'),
+    h('div', { class: 'row' }, line,
+      on && (G.needsConsent() || cs.state === 'needs-auth')
+        ? h('button', { class: 'btn small', onclick: () => G.sync({ interactive: true }).then(() => rerender()) }, 'Yeniden bağlan') : null));
+}
+
 function dataSection() {
   const file = h('input', { type: 'file', accept: 'application/json,.json', hidden: true });
   file.onchange = async () => {
@@ -298,13 +319,13 @@ function dataSection() {
     file.value = '';
   };
   return h('section', { class: 'panel' }, h('h3', {}, 'Veriler'),
-    h('p', { class: 'muted small' }, `Verilerin bu tarayıcıda saklanıyor: ${state.events.filter((e) => !e.deleted).length} plan, ${state.courses.length} ders, ${state.tasks.length} görev, ${state.notes.length} unutma notu, ${Object.keys(state.journal).length} defter sayfası. Google'a yalnız planlar gider; görevler, ders programı, notlar ve defter yalnız burada durur.`),
+    h('p', { class: 'muted small' }, `Verilerin bu tarayıcıda saklanıyor: ${state.events.filter((e) => !e.deleted).length} plan, ${state.courses.length} ders, ${state.tasks.length} görev, ${state.notes.length} unutma notu, ${Object.keys(state.journal).length} defter sayfası. ${state.settings.googleConnected && G.cloudEnabled() ? 'Planlar Google Takvim\'le, görevler, ders programı, notlar ve defter Google Drive\'daki gizli uygulama klasörüyle eşitlenir.' : 'Google\'a yalnız planlar gider; görevler, ders programı, notlar ve defter yalnız burada durur.'}`),
     h('h4', { class: 'sub-h' }, 'Otomatik yedek'), backupPanel(),
     h('h4', { class: 'sub-h' }, 'Elle yedek'),
     h('div', { class: 'row' },
       h('button', { class: 'btn', onclick: () => downloadBackup() }, 'Yedek indir'),
       h('button', { class: 'btn', onclick: () => file.click() }, 'Yedekten yükle'), file,
-      h('button', { class: 'btn danger ghost', onclick: async () => { if (await confirmDialog({ title: 'Her şey silinsin mi?', message: 'Planlar, dersler, görevler ve ayarlar bu tarayıcıdan silinir. Google Takvim\'deki etkinliklere dokunulmaz.', okLabel: 'Hepsini sil', danger: true })) { resetState(); toast('Tüm veriler silindi'); } } }, 'Her şeyi sil')));
+      h('button', { class: 'btn danger ghost', onclick: async () => { if (await confirmDialog({ title: 'Her şey silinsin mi?', message: 'Planlar, dersler, görevler ve ayarlar bu tarayıcıdan silinir. Google Takvim\'deki etkinliklere ve Drive\'daki eşitleme kopyasına dokunulmaz (Google bağlıysa veriler bir sonraki eşitlemede geri gelir).', okLabel: 'Hepsini sil', danger: true })) { resetState(); toast('Tüm veriler silindi'); } } }, 'Her şeyi sil')));
 }
 
 export function renderSettings(root) {

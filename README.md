@@ -89,7 +89,7 @@ Tanıdığı ifadeler: bugün, yarın, öbür gün, haftaya/önümüzdeki + gün
 
 **Hatırlatmalar** — Vazifedar açıkken (sekme ya da yüklü uygulama penceresi, arka planda olsa da) sistem bildirimi; izin verilmezse uygulama içinde uyarı. Bildirime tıklayınca Vazifedar öne gelir. Uygulama tamamen kapalıyken bildirim gelmez; telefonda kapalıyken de hatırlatma için Google Takvim eşitlemesini aç, hatırlatma süresi Google'a da gider.
 
-**Otomatik yedek** — Görevler, ders programı, devamsızlık, unutma notları, defter ve kadran arşivi yalnız bu tarayıcıda durur (Google'a yalnız planlar gider). Tarayıcı verileri temizlenirse bunlar gider; bu yüzden:
+**Otomatik yedek** — Google bağlı değilse görevler, ders programı, devamsızlık, unutma notları, defter ve kadran arşivi yalnız bu tarayıcıda durur; bağlıysa Drive'daki eşitleme kopyası da vardır ama o bir yedek değildir (yanlışlıkla silinen bir şey oradan da silinir). Bu yüzden:
 - **Chrome / Edge**: Ayarlar → Veriler → *Yedek klasörü seç*. Seçilen klasöre her gün bir yedek yazılır; son 30 günün yedeği ve daha eskilerden her ayın ilk yedeği tutulur (gerisi kendiliğinden silinir; klasördeki başka dosyalara dokunulmaz). Vazifedar klasörünün kendisini seçersen içinde `yedekler` klasörü açılır. **Google Drive ya da OneDrive klasörü seçersen** yedekler buluta da gider, bilgisayara bir şey olsa bile kaybolmaz.
 - Tarayıcı yeniden açıldığında klasör iznini yeniden isteyebilir: üstte sarı şerit çıkar, **İzin ver**'e bas (çıkarsa "Her ziyarette izin ver"i seç, bir daha sorulmaz). Klasör taşınır ya da silinirse kırmızı şerit yeni klasör seçmeni ister.
 - **Telefon, Firefox, Safari** klasöre kendiliğinden yazamaz: 7 gün yedek alınmazsa üstte "Yedek indir" hatırlatması çıkar.
@@ -111,7 +111,7 @@ Tanıdığı ifadeler: bugün, yarın, öbür gün, haftaya/önümüzdeki + gün
 ## Google Takvim bağlantısı (bir kerelik kurulum)
 
 1. [Google Cloud Console](https://console.cloud.google.com/projectcreate)'da yeni proje oluştur (ör. "Vazifedar").
-2. [Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)'yi etkinleştir.
+2. [Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)'yi ve [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)'yi etkinleştir (Drive, görevlerin ve ders programının cihazlar arasında eşitlenmesi için).
 3. **Google Auth Platform** (OAuth izin ekranı): uygulama türü *External*; **Audience → Test users** kısmına kendi Gmail adresini ekle.
 4. **Clients** (Kimlik bilgileri) → *Create client* → tür **Web application**.
 5. **Authorized JavaScript origins**: `http://localhost:8080`
@@ -128,7 +128,10 @@ Notlar:
 - Vazifedar'da eklediğin, değiştirdiğin, sildiğin planlar Google'a gider (formdaki "Google Takvim ile eşitle" kutusu).
 - Google'da değiştirilen/silinen etkinlikler bir sonraki eşitlemede Vazifedar'a yansır. Aynı anda iki yerde değiştirilen bir kayıtta Vazifedar'daki değişiklik kazanır.
 - Otomatik eşitleme varsayılan 10 dakikada bir ve sekmeye geri döndüğünde çalışır.
-- Görevler (tarihsiz olanlar) yalnız Vazifedar'da durur.
+- **Görevler, ders programı, devamsızlık, unutma notları, defter, kadran arşivi ve kategoriler** Google Drive'daki gizli uygulama klasöründe (appDataFolder) tek bir dosyada tutulur ve aynı Google hesabıyla bağlanan her cihazda (bilgisayar, telefon, tablet) aynı görünür. Bu klasörü yalnız Vazifedar görür, Drive'ında dosya olarak çıkmaz. Ayarlar → Google Takvim'deki kutuyla kapatılabilir.
+- Bu veriler her değişiklikten birkaç saniye sonra, uygulama açılınca ve otomatik eşitlemede eşitlenir. Bir kayıt yalnız bir cihazda değiştiyse o değişiklik (silme dahil) diğerine geçer; aynı kayıt iki cihazda birden değiştiyse eşitlemeyi yapan cihazdaki kazanır. İlk eşitlemede hiçbir şey silinmez, iki taraf birleşir.
+- Görünüm, bildirim, namaz vakti gibi ayarlar ve Google'a gönderilmeyen (yalnız yerel) planlar cihaza özeldir.
+- Bu özellik gelmeden önce bağlandıysan üst çubukta bir kez **Yeniden bağlan** çıkar: Google Drive iznini de sorar.
 
 ## Telefona kurmak (GitHub Pages)
 
@@ -141,10 +144,10 @@ Telefon bilgisayardaki `localhost`'a erişemez; Vazifedar'ı ücretsiz olarak Gi
 3. Depoda **Settings → Pages** → *Source: Deploy from a branch* → Branch: `main`, klasör: `/ (root)` → *Save*. Bir iki dakika sonra adres hazır olur: `https://mfatihdogan27.github.io/vazifedar/`
 4. [Google Cloud Console](https://console.cloud.google.com/auth/clients) → Vazifedar istemcisi → **Authorized JavaScript origins**'e `https://mfatihdogan27.github.io` ekle (sonunda `/vazifedar` olmadan) → *Save*.
 5. Telefonda Chrome ile adresi aç → menü (⋮) → **Ana ekrana ekle / Uygulamayı yükle**. (iPhone: Safari → Paylaş → *Ana Ekrana Ekle*.) Sonra Vazifedar → Ayarlar → Google Takvim: istemci kimliğini yapıştır → *Google ile bağlan*.
-6. Ders programını ve görevleri taşımak için bilgisayarda *Yedek indir*, dosyayı telefona gönder (WhatsApp, Drive…), telefonda *Yedekten yükle*.
+6. Ders programı, görevler, notlar ve defter aynı Google hesabıyla bağlanınca kendiliğinden gelir (önce bilgisayarda bir kez eşitlenmiş olmalı).
 
 **Bilmen gerekenler**
-- Veriler adres başınadır: `localhost:8080`'deki Vazifedar ile `github.io`'daki ayrı veri tutar. Planlar Google Takvim üzerinden iki tarafta da görünür; görevler, ders programı, notlar ve defter görünmez. Bunları tek bir yerde tutmak (ör. defteri yalnız bilgisayarda yazmak) ya da ara sıra yedekle taşımak gerekir.
+- Veriler adres başınadır: `localhost:8080`'deki Vazifedar ile `github.io`'daki ayrı veri tutar; ikisini Google eşitlemesi birleştirir (planlar Google Takvim, gerisi Drive'daki gizli klasör üzerinden). Google bağlı değilse bunlar yalnız yedekle taşınır.
 - Kodu güncellersen GitHub'daki dosyaları da yenile (aynı yükleme ekranı, üstüne yazar); telefondaki uygulama bir sonraki açılışta kendini günceller.
 - İstersen bilgisayarda da `github.io` adresini kullanabilirsin (o zaman `baslat.bat`'a hiç gerek kalmaz), ama mevcut verilerini yedekle oraya taşıman gerekir.
 

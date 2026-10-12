@@ -3,8 +3,10 @@
 import { state, commit, uid, breakOn, inTerm } from './store.js';
 import { parseLocal, toLocalISO, toDateKey, addDays, isoWeekday } from './dates.js';
 import { isRecurring, toRecurrence } from './recurrence.js';
+import { cloudSync } from './cloud.js';
 
-const SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata'; // yalnız Vazifedar'ın gizli klasörü
+const SCOPES = `https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly ${DRIVE_SCOPE}`;
 const API = 'https://www.googleapis.com/calendar/v3';
 const TOKEN_KEY = 'vazifedar:gtoken';
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Istanbul';
@@ -19,12 +21,21 @@ let tokenExp = 0;
 let gisPromise = null;
 let syncing = null;
 let pushTimer = null;
+let cloudTimer = null;
+let cloud = { state: 'off', message: '' }; // görev/ders eşitlemesinin durumu
 let status = { state: 'off', message: '' };
 const statusListeners = new Set();
 
 export function onStatus(fn) { statusListeners.add(fn); fn(status); return () => statusListeners.delete(fn); }
 function setStatus(st, message = '') { status = { state: st, message }; for (const fn of statusListeners) fn(status); }
 export function getStatus() { return status; }
+export function getCloudStatus() { return cloud; }
+function setCloud(st, message = '') { cloud = { state: st, message }; }
+
+// Bulut eşitlemesi (görevler, dersler, notlar, defter) açık mı ve izni alınmış mı
+export function cloudEnabled() { return state.settings.cloudSync !== false; }
+// İzinler genişledi (Drive): bu cihazda henüz yeni izinle bağlanılmadıysa bir kez onay gerekir
+export function needsConsent() { return !!state.settings.googleConnected && state.settings.googleScopes !== SCOPES; }
 
 // Oturum içinde anahtarı sakla (sayfa yenilenince tekrar izin istemesin)
 try {
@@ -72,9 +83,14 @@ export function connect() {
         pending = null;
         if (resp.error) { setStatus('error', `Google izni alınamadı: ${resp.error}`); reject(new Error(resp.error)); return; }
         token = resp.access_token;
+        const oa = window.google?.accounts?.oauth2;
+        const granted = oa?.hasGrantedAllScopes ? oa.hasGrantedAllScopes(resp, DRIVE_SCOPE) : String(resp.scope || '').includes(DRIVE_SCOPE);
+        state.settings.googleScopes = SCOPES;
+        state.settings.cloudGranted = !!granted;
         tokenExp = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
         try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token, exp: tokenExp })); } catch { /* yok say */ }
-        if (!state.settings.googleConnected) { state.settings.googleConnected = true; commit('settings'); }
+        state.settings.googleConnected = true;
+        commit('settings');
         setStatus('idle', 'Bağlandı');
         resolve();
       };
@@ -83,7 +99,7 @@ export function connect() {
         setStatus('error', err?.type === 'popup_closed' ? 'Google penceresi kapatıldı' : 'Google penceresi açılamadı (açılır pencere engelleyiciyi kontrol et)');
         reject(new Error(err?.type || 'popup'));
       };
-      tc.requestAccessToken({ prompt: state.settings.googleConnected ? '' : 'consent' });
+      tc.requestAccessToken({ prompt: state.settings.googleConnected && !needsConsent() ? '' : 'consent' });
     };
     if (window.google?.accounts?.oauth2) go();
     else loadGis().then(go, (e) => { setStatus('error', e.message); reject(e); });
@@ -95,7 +111,9 @@ export function disconnect() {
   token = null; tokenExp = 0;
   try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* yok say */ }
   state.settings.googleConnected = false;
+  state.settings.googleScopes = '';
   commit('settings');
+  setCloud('off');
   setStatus('off', '');
 }
 
@@ -103,12 +121,15 @@ class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-async function api(method, path, { body, query } = {}) {
+// path: Calendar API'ye göre yol ya da tam adres (Drive). raw: hazır gövde (contentType ile).
+async function api(method, path, { body, query, raw, contentType } = {}) {
   const qs = query ? `?${new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined && v !== null))}` : '';
-  const res = await fetch(`${API}${path}${qs}`, {
+  const url = path.startsWith('https://') ? path : `${API}${path}`;
+  const ct = raw !== undefined ? (contentType || 'application/json') : body ? 'application/json' : null;
+  const res = await fetch(`${url}${qs}`, {
     method,
-    headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
+    headers: { Authorization: `Bearer ${token}`, ...(ct ? { 'Content-Type': ct } : {}) },
+    body: raw !== undefined ? raw : body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) {
     token = null; tokenExp = 0;
@@ -251,13 +272,17 @@ async function pull() {
         local = state.events.find((e) => e.id === priv.vazifedarId && !e.googleId);
         if (local) local.googleId = g.id;
       }
+      // Başka bir cihazda oluşturulmuş planın kimliğini koru: görevlerin "yerleştirildiği plan" ve
+      // plana bağlı unutma notları cihazlar arasında aynı plana işaret etsin
+      const vid = !g.recurringEventId && priv.vazifedarId && !state.events.some((e) => e.id === priv.vazifedarId) ? priv.vazifedarId : null;
+      if (local && vid && local.source === 'google') renameEvent(local, vid);
       if (local) {
         if (local.deleted || local.dirty || !local.syncToGoogle) continue;
         if (isRecurring(local)) continue;
         if (local.googleUpdated !== g.updated) Object.assign(local, fromGoogle(g), { googleUpdated: g.updated });
       } else {
         state.events.push({
-          id: uid(), ...fromGoogle(g), googleId: g.id, googleUpdated: g.updated, syncToGoogle: true,
+          id: vid || uid(), ...fromGoogle(g), googleId: g.id, googleUpdated: g.updated, syncToGoogle: true,
           source: 'google', dirty: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
         });
       }
@@ -277,21 +302,61 @@ async function pull() {
   for (const t of state.tasks) if (removed.has(t.scheduledEventId)) t.scheduledEventId = null;
 }
 
-export function sync({ interactive = false } = {}) {
+function renameEvent(ev, id) {
+  const old = ev.id;
+  ev.id = id;
+  for (const t of state.tasks) if (t.scheduledEventId === old) t.scheduledEventId = id;
+  for (const n of state.notes) if (n.target?.eventId === old) n.target.eventId = id;
+}
+
+// Görevler, ders programı, notlar, defter → Google Drive (gizli uygulama klasörü)
+async function runCloud() {
+  if (!cloudEnabled()) { setCloud('off'); return; }
+  if (needsConsent() || !state.settings.cloudGranted) {
+    setCloud('needs-auth', needsConsent()
+      ? 'Görevler ve ders programının da eşitlenmesi için bir kez yeniden bağlan.'
+      : 'Google bağlanırken Drive izni verilmedi. Görevler ve ders programı eşitlenmiyor; "Yeniden bağlan" ile izni ver.');
+    return;
+  }
+  setCloud('syncing', 'Eşitleniyor…');
+  try {
+    let r = await cloudSync(api);
+    if (r.retry) r = await cloudSync(api);
+    state.settings.cloudLastSync = new Date().toISOString();
+    setCloud('idle', 'Eşitlendi');
+  } catch (e) {
+    console.error(e);
+    const msg = String(e.message || '');
+    if (e.status === 403 && /has not been used|is disabled|accessNotConfigured/i.test(msg)) {
+      setCloud('error', 'Google Drive API kapalı: Google Cloud Console\'da Vazifedar projesi için "Google Drive API"yi etkinleştir.');
+    } else if (e.status === 403 && /insufficient/i.test(msg)) {
+      state.settings.googleScopes = '';
+      setCloud('needs-auth', 'Drive izni eksik; "Yeniden bağlan" ile izni ver.');
+    } else if (e.status === 401) throw e;
+    else setCloud('error', `Görev/ders eşitlemesi başarısız: ${msg || 'bilinmeyen hata'}`);
+  }
+}
+
+export function sync({ interactive = false, cloudOnly = false } = {}) {
   if (!isConfigured() || !state.settings.googleConnected && !interactive) return Promise.resolve(false);
-  if (syncing) { syncing.again = true; return syncing.p; }
-  if (!hasToken()) {
+  if (syncing) { syncing.again = true; if (!cloudOnly) syncing.full = true; return syncing.p; }
+  if (!hasToken() || (interactive && needsConsent() && cloudEnabled())) {
     if (!interactive) { setStatus('needs-auth', 'Google oturumu yenilenmeli'); return Promise.resolve(false); }
     return connect().then(() => sync({ interactive: false }), () => false);
   }
   const run = async () => {
     setStatus('syncing', 'Eşitleniyor…');
     try {
-      await push();
-      await pull();
-      state.settings.lastSync = new Date().toISOString();
+      if (!cloudOnly) {
+        await push();
+        await pull();
+        state.settings.lastSync = new Date().toISOString();
+      }
+      await runCloud();
       commit('sync');
-      setStatus('idle', 'Eşitlendi');
+      if (cloud.state === 'needs-auth' && needsConsent()) setStatus('needs-auth', cloud.message);
+      else if (cloud.state === 'error') setStatus('error', cloud.message);
+      else setStatus('idle', 'Eşitlendi');
       return true;
     } catch (e) {
       commit('sync');
@@ -301,10 +366,10 @@ export function sync({ interactive = false } = {}) {
       return false;
     }
   };
-  const holder = { again: false };
+  const holder = { again: false, cloudOnly };
   holder.p = run().then(async (ok) => {
     syncing = null;
-    if (holder.again) return sync();
+    if (holder.again) return sync({ cloudOnly: !holder.full });
     return ok;
   });
   syncing = holder;
@@ -316,6 +381,13 @@ export function schedulePush() {
   if (!isConfigured() || !state.settings.googleConnected) return;
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => { sync(); }, 1500);
+}
+
+// Görev/ders/not/defter değişikliğinden birkaç saniye sonra yalnız bulut eşitlemesi
+export function scheduleCloud() {
+  if (!isConfigured() || !state.settings.googleConnected || !cloudEnabled() || !state.settings.cloudGranted || needsConsent()) return;
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => { if (hasToken()) sync({ cloudOnly: true }); }, 4000);
 }
 
 // ---------- Ders programını Google'a aktar ----------

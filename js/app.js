@@ -19,6 +19,7 @@ import { startReminderLoop } from './notify.js';
 import { initBackup } from './backup.js';
 import { registerSW } from './pwa.js';
 
+const CLOUD_REASONS = new Set(['tasks', 'courses', 'notes', 'journal', 'archive', 'settings', 'import']);
 const UI_KEY = 'vazifedar:ui2';
 const ui = (() => {
   let saved = {};
@@ -155,6 +156,8 @@ subscribe((reason, opts) => {
   if (opts?.pushGoogle && state.settings.googleConnected) {
     if (G.hasToken()) G.schedulePush();
   }
+  // Görev, ders, not, defter değişiklikleri Google Drive üzerinden diğer cihazlara
+  if (CLOUD_REASONS.has(reason)) G.scheduleCloud();
   // Ayarlar sayfasında yazarken sayfa yeniden çizilmesin
   if (reason === 'settings' && ui.view === 'settings') { renderSync(); return; }
   // Defter yazısı yalnız kaydedilir; yazarken sayfa yeniden çizilmez
