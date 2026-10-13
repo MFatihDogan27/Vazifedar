@@ -39,7 +39,11 @@ async function networkFirst(req) {
   try {
     // no-cache: tarayıcı önbelleğindeki kopyayı sunucuya sormadan kullanma (GitHub Pages 10 dk önbelletir)
     const res = await Promise.race([fetch(req, { cache: 'no-cache' }), timeout(NET_TIMEOUT)]);
-    if (res && res.ok && res.type === 'basic') c.put(req, res.clone());
+    if (res && res.ok && res.type === 'basic') {
+      c.put(req, res.clone());
+      // Açılan sayfayı "index.html" adıyla da sakla: güncelleme denetimi çalışan sayfayı buradan tanır
+      if (req.mode === 'navigate') c.put('index.html', res.clone());
+    }
     return res;
   } catch {
     const hit = await c.match(req, { ignoreSearch: req.mode === 'navigate' })

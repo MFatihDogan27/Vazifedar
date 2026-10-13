@@ -645,8 +645,8 @@ function updateBlock() {
       case 'checking': cls = 'busy'; title = 'Denetleniyor…'; sub = 'Sunucudaki dosyalara bakılıyor'; break;
       case 'updating': cls = 'busy'; title = 'Güncelleniyor…'; sub = 'Dosyalar indiriliyor, uygulama birazdan yeniden açılacak'; break;
       case 'available':
-        cls = 'new'; icon = 'star'; title = 'Yeni sürüm hazır';
-        sub = [st.newStamp ? `Sunucudaki: ${stampText(st.newStamp)}` : '', installed].filter(Boolean).join(' · ');
+        cls = 'new'; icon = 'repeat'; title = 'Yeni sürüm hazır';
+        sub = [st.changed?.length && st.changed[0] !== '?' ? `${st.changed.length} dosya değişti` : '', st.newStamp ? `sunucuda ${stampText(st.newStamp)}` : ''].filter(Boolean).join(' · ');
         btns = [h('button', { class: 'btn primary', onclick: () => applyUpdate() }, 'Güncelle')]; break;
       case 'current':
         cls = 'ok'; icon = 'tick'; title = 'Güncel';
@@ -663,8 +663,12 @@ function updateBlock() {
       h('div', { class: 'upd-act' }, btns));
   };
   draw();
-  const off = onUpdateStatus((st) => { if (box.isConnected) draw(st); else off(); });
-  if (updateStatus().state === 'idle') checkForUpdate({ quiet: true });
+  // Kart sayfaya yerleşmeden gelen durumları da çiz; sayfadan kalktıktan sonra dinlemeyi bırak
+  let mounted = false;
+  const off = onUpdateStatus((st) => {
+    if (box.isConnected) { mounted = true; draw(st); } else if (mounted) off(); else draw(st);
+  });
+  if (updateStatus().state === 'idle') setTimeout(() => checkForUpdate({ quiet: true }), 300);
   return box;
 }
 
@@ -719,9 +723,22 @@ export function renderSettings(root) {
   const visible = new Map();
   observer = new IntersectionObserver((entries) => {
     for (const e of entries) visible.set(e.target.dataset.sec, e.isIntersecting ? e.intersectionRect.top : null);
+    pick();
+  }, { root, rootMargin: '-15% 0px -60% 0px' });
+  const atBottom = () => root.scrollTop > 0 && root.scrollTop + root.clientHeight >= root.scrollHeight - 4;
+  function pick() {
+    // En alta inince son bölüm üst banda hiç ulaşmaz; onu işaretle
+    if (atBottom()) { nav.setActive(SECTIONS[SECTIONS.length - 1].id); return; }
     const first = SECTIONS.find((s) => visible.get(s.id) !== null && visible.get(s.id) !== undefined);
     if (first) nav.setActive(first.id);
-  }, { root, rootMargin: '-15% 0px -60% 0px' });
+  }
   for (const s of secs) observer.observe(s);
   nav.setActive('google');
+  const onScroll = () => {
+    if (!page.isConnected) { root.removeEventListener('scroll', onScroll); return; }
+    pick();
+  };
+  root.removeEventListener('scroll', root._setScroll || (() => {}));
+  root._setScroll = onScroll;
+  root.addEventListener('scroll', onScroll, { passive: true });
 }

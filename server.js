@@ -12,7 +12,9 @@ http.createServer((req, res) => {
   if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('Bulunamadı'); return; }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    let mtime = null;
+    try { mtime = fs.statSync(file).mtime.toUTCString(); } catch { /* yok say */ }
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Content-Length': data.length, ...(mtime ? { 'Last-Modified': mtime } : {}) });
     res.end(data);
   });
 }).listen(PORT, '127.0.0.1', () => console.log(`Vazifedar: http://localhost:${PORT}  (kapatmak için Ctrl+C)`));

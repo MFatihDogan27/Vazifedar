@@ -153,7 +153,7 @@ Telefon bilgisayardaki `localhost`'a erişemez; Vazifedar'ı ücretsiz olarak Gi
 
 **Bilmen gerekenler**
 - Veriler adres başınadır: `localhost:8080`'deki Vazifedar ile `github.io`'daki ayrı veri tutar; ikisini Google eşitlemesi birleştirir (planlar Google Takvim, gerisi Drive'daki gizli klasör üzerinden). Google bağlı değilse bunlar yalnız yedekle taşınır.
-- Kodu güncellersen GitHub'daki dosyaları da yenile (aynı yükleme ekranı, üstüne yazar); telefondaki uygulama bir sonraki açılışta kendini günceller.
+- **Kodu güncelleyince:** değişen dosyaları GitHub'a yükle (aynı yükleme ekranı, üstüne yazar); GitHub Pages bir iki dakikada yayına alır. Telefondaki uygulamayı silip yeniden yüklemen gerekmez: Vazifedar açılınca ya da arka plandan öne gelince (en çok 10 dakikada bir) sunucuya bakar, yeni dosya varsa altta **"Yeni sürüm hazır — Güncelle"** çıkar. Bildirimi kaçırırsan Ayarlar → Uygulama → *Güncellemeleri denetle*; hâlâ eski görünüyorsa *Yine de yenile* bütün dosyaları yeniden indirir. Verilerin olduğu yerde kalır. Sürüm numarası artırmak gerekmez: her dosyanın sunucudaki kimliği (ETag / değişme tarihi) telefondakiyle karşılaştırılır. Yeni bir JS dosyası eklersen `sw.js`'teki listeye de yaz.
 - İstersen bilgisayarda da `github.io` adresini kullanabilirsin (o zaman `baslat.bat`'a hiç gerek kalmaz), ama mevcut verilerini yedekle oraya taşıman gerekir.
 
 ## Dosyalar
@@ -191,6 +191,7 @@ js/dates.js       Tarih yardımcıları
 js/ui.js          DOM, modal, bildirim yardımcıları
 js/backup.js      Otomatik yedek (klasöre günlük yedek, hatırlatma şeridi)
 js/pwa.js         Uygulama olarak yükleme, service worker kaydı, sistem bildirimi
+js/update.js      Güncelleme denetimi (sunucudaki dosyalar ↔ cihazdaki kopya) ve "Güncelle"
 sunucu.py         Yerel sunucu (Python)
 server.js         Yerel sunucu (Node.js, yedek)
 baslat.bat        Windows'ta tek tıkla başlatma
