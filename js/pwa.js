@@ -26,7 +26,7 @@ export function registerSW() {
 
 // Android Chrome'da `new Notification()` çalışmaz; bildirim service worker üstünden gösterilir.
 export async function showSystemNotification(title, body, tag) {
-  const opts = { body, tag, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' };
+  const opts = { body, tag, icon: 'icons/kadran-192.png', badge: 'icons/kadran-192.png' };
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
     if (reg) { await reg.showNotification(title, opts); return true; }

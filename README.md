@@ -289,7 +289,7 @@ Telefon bilgisayardaki `localhost`'a erişemediği için uygulama GitHub Pages't
 > ⚠️ **`yedekler` klasörünü, `vazifedar-yedek-*.json` dosyalarını ve `_yedek_…` klasörlerini asla yükleme.** Yedekler defter dahil tüm kişisel verini içerir ve depo herkese açıktır. Git kullanırsan `.gitignore` bunları dışarıda bırakır; tarayıcıdan sürükle-bırak yaparken dikkat et.
 
 1. github.com → **New repository** → ad: `Vazifedar` (büyük V ile; adres büyük-küçük harfe duyarlıdır), **Public** → *Create repository*.
-2. **uploading an existing file** → şunları sürükle: `index.html`, `manifest.webmanifest`, `sw.js`, `icon.svg`, `.nojekyll`, `README.md` ve `css`, `js`, `icons` klasörleri → *Commit changes*.
+2. **uploading an existing file** → şunları sürükle: `index.html`, `manifest.webmanifest`, `sw.js`, `.nojekyll`, `README.md` ve `css`, `js`, `icons` klasörleri → *Commit changes*.
 3. **Settings → Pages** → *Deploy from a branch* → `main`, `/ (root)` → *Save*. Bir iki dakika sonra adres hazır olur: `https://mfatihdogan27.github.io/Vazifedar/`
 
 **Güncellemek:** Değişen dosyaları aynı ekrandan yeniden yükle (üstüne yazar). Kullanan herkesin uygulaması en geç 10 dakika içinde "Yeni sürüm hazır" der. Sürüm numarası artırmak gerekmez. Yeni bir JS dosyası eklediysen `sw.js`'teki listeye de yaz.
@@ -320,7 +320,7 @@ Uyarı ekranı olmadan herkese açmak istersen Google'ın uygulamayı doğrulama
 index.html            Uygulama kabuğu
 manifest.webmanifest  Uygulama olarak yükleme bilgileri (ad, simgeler, kısayollar)
 sw.js                 Service worker: internetsiz açılış, güncelleme, bildirime tıklama
-icon.svg, icons/      Uygulama simgeleri
+icons/kadran*         Uygulama simgeleri (koyu zeminde saat kadranı)
 css/style.css         Görünüm "Kadran" (açık/koyu tema, mobil düzen)
 css/takvim.css        Takvim sekmesi: esnek eksen, boşluk cepleri, damgalar, zımba, yakınlaştırma
 js/app.js             Üst çubuk, gezinme, araç çubuğu, otomatik işler
