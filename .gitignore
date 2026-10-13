@@ -1,0 +1,14 @@
+# Kişisel veriler: asla GitHub'a gitmesin
+yedekler/
+vazifedar-yedek-*.json
+# Büyük değişikliklerden önce alınan kod kopyaları
+_yedek_*/
+# Editör / sistem dosyaları
+.idea/
+.vscode/
+node_modules/
+Thumbs.db
+desktop.ini
+*.log
+# Geliştirme notları (kişisel bilgi içerir)
+CLAUDE.md
