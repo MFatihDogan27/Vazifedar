@@ -31,6 +31,7 @@ function defaultState() {
     courses: [],
     term: { start: '', end: '', breaks: [] },
     tasks: [],
+    taskSeries: [], // tekrarlayan görev/ödev şablonları (her tekrar tasks'ta ayrı bir görev)
     notes: [],      // derse / plana / güne bağlı "unutma" notları
     journal: {},    // 'YYYY-MM-DD' → { text, updatedAt } — defter
     archive: {},    // 'YYYY-MM-DD' → { segs, allDay } — kadran arşivi (gün bitince donar)
@@ -55,6 +56,8 @@ function defaultState() {
       googleCalendarName: '',
       googleConnected: false,
       tasksToGoogle: 'odev', // ödev teslimleri Google Takvim'e: odev | hepsi | kapali
+      autoReauth: true,      // Google oturumu düşünce ilk dokunuşta yenile
+      onboarded: false,      // ilk açılış kurulumu yapıldı mı (eski kullanıcılarda migrate true yapar)
       autoSyncMin: 10,
       lastSync: null,
       dayStartHour: 7,
@@ -91,6 +94,9 @@ function migrate(s) {
   out.settings.prayer = { ...d.settings.prayer, ...(s.settings?.prayer || {}) };
   out.settings.prayer.offsets = { ...(out.settings.prayer.offsets || {}) };
   out.settings.pins = { ...d.settings.pins, ...(s.settings?.pins || {}) };
+  // Kayıt varsa bu kullanıcı yeni değil: ilk açılış kurulumunu gösterme
+  if (s.settings && s.settings.onboarded === undefined) out.settings.onboarded = true;
+  out.taskSeries = Array.isArray(out.taskSeries) ? out.taskSeries : [];
   out.notes = Array.isArray(out.notes) ? out.notes : [];
   for (const n of out.notes) { n.checks = n.checks || {}; n.target = n.target || { type: 'date', date: '' }; }
   out.journal = out.journal && typeof out.journal === 'object' ? out.journal : {};
@@ -137,7 +143,7 @@ let saveTimer = null;
 // (updatedAt) yazılır. İki cihazda aynı öğe değişirse eşitlemede daha yeni olan kazanır.
 // Her commit'te önceki hâlle karşılaştırılır; böylece öğeyi değiştiren her yerin bunu ayrıca
 // yapması gerekmez. Buluttan gelen (cloud) ya da yedekten yüklenen (import) değişiklik damgalanmaz.
-const STAMPED = ['tasks', 'courses', 'notes', 'categories', 'taskCategories'];
+const STAMPED = ['tasks', 'taskSeries', 'courses', 'notes', 'categories', 'taskCategories'];
 const bodyOf = (x) => { const { updatedAt, ...rest } = x; return JSON.stringify(rest); };
 let marks = null;
 function takeMarks() {
@@ -387,6 +393,85 @@ export function upsertTask(data) {
   commit('tasks');
   return t;
 }
+// ---------- Tekrarlayan görevler ve ödevler ----------
+// Seri: { id, title, priority, categoryId, courseId, dueTime, estimateMin, notes, start: 'YYYY-MM-DD',
+//         recur: { freq, interval, byDay, until }, lastKey, ended }
+// Her tekrar sıradan bir görevdir (id `${seri.id}@${tarih}`, seriesId). Vazifedar her seri için
+// sıradaki tekrarı (bugün ya da sonraki ilk tarih) kendiliğinden oluşturur; tarihi geçince bir
+// sonrakini. Kimlik tarihten türediği için iki cihaz aynı tekrarı oluştursa da tek görev olur.
+// lastKey'den eski bir tekrar bir daha oluşturulmaz: silinen ya da temizlenen tekrar geri gelmez.
+export function seriesOf(t) {
+  return t?.seriesId ? state.taskSeries.find((s) => s.id === t.seriesId && !s.ended) || null : null;
+}
+// fromKey günü ya da sonrasındaki ilk tekrar tarihi (yoksa null)
+export function seriesNext(s, fromKey) {
+  const ev = { start: `${s.start}T00:00`, end: `${s.start}T23:59`, recur: s.recur, exdates: [] };
+  const from = parseLocal(fromKey);
+  return expand(ev, from, addDays(from, 400))[0]?.dateKey || null;
+}
+const SERIES_FIELDS = ['title', 'priority', 'categoryId', 'courseId', 'dueTime', 'estimateMin', 'notes'];
+function seriesInstance(s, key) {
+  return {
+    id: `${s.id}@${key}`, seriesId: s.id, title: s.title, priority: s.priority || 'orta', categoryId: s.categoryId || '',
+    courseId: s.courseId || '', due: key, dueTime: s.courseId ? (s.dueTime || '23:59') : '', estimateMin: s.estimateMin || 60,
+    notes: s.notes || '', done: false, doneAt: null, scheduledEventId: null, createdAt: new Date().toISOString(),
+  };
+}
+// Sıradaki tekrarları oluşturur; eklenen sayısını döndürür
+export function rollSeries(now = new Date(), { silent = false } = {}) {
+  const today = toDateKey(now);
+  let added = 0;
+  for (const s of state.taskSeries) {
+    if (s.ended || !s.recur?.freq || !s.start) continue;
+    if (s.lastKey && s.lastKey >= today) continue; // sıradaki zaten oluşturuldu
+    const key = seriesNext(s, today);
+    if (!key || (s.lastKey && key <= s.lastKey)) continue;
+    if (!state.tasks.some((t) => t.id === `${s.id}@${key}`)) state.tasks.push(seriesInstance(s, key));
+    s.lastKey = key;
+    added++;
+  }
+  if (added && !silent) commit('tasks');
+  return added;
+}
+// Yeni seri: ilk tekrar data.due (ya da sonrasındaki ilk uygun gün).
+// task verilirse o görev serinin ilk tekrarı olur (var olan görevi tekrarlayana çevirmek için).
+export function createSeries(data, recur, { task = null } = {}) {
+  const s = { id: uid(), start: data.due, recur: { freq: recur.freq, interval: Math.max(1, Number(recur.interval) || 1), byDay: recur.byDay || [], until: recur.until || '' }, lastKey: null, ended: false, createdAt: new Date().toISOString() };
+  for (const k of SERIES_FIELDS) s[k] = data[k] ?? '';
+  s.estimateMin = data.estimateMin || 60;
+  if (s.recur.freq === 'weekly' && !s.recur.byDay.length) s.recur.byDay = [isoWeekday(parseLocal(data.due))];
+  state.taskSeries.push(s);
+  let t = task;
+  if (t) { t.seriesId = s.id; s.lastKey = data.due; } else {
+    const key = seriesNext(s, data.due) || data.due;
+    t = seriesInstance(s, key);
+    state.tasks.push(t);
+    s.lastKey = key;
+  }
+  rollSeries(new Date(), { silent: true }); // ilk tarih geçmişteyse bugünkü/sıradaki de gelsin
+  commit('tasks');
+  return t;
+}
+// Bir tekrar düzenlenince: ad, öncelik, ders, saat, not… bundan sonrakilere de geçsin
+export function updateSeriesFrom(t, recur) {
+  const s = state.taskSeries.find((x) => x.id === t.seriesId);
+  if (!s) return;
+  for (const k of SERIES_FIELDS) s[k] = t[k] ?? '';
+  if (recur) {
+    const r = { freq: recur.freq, interval: Math.max(1, Number(recur.interval) || 1), byDay: recur.byDay || [], until: recur.until || '' };
+    if (r.freq === 'weekly' && !r.byDay.length) r.byDay = [isoWeekday(parseLocal(t.due))];
+    if (JSON.stringify(r) !== JSON.stringify(s.recur)) { s.recur = r; s.start = t.due; }
+  }
+  // Henüz gelmemiş, açık tekrarları da güncelle
+  for (const x of state.tasks) {
+    if (x.seriesId === s.id && x !== t && !x.done && x.due > t.due) for (const k of SERIES_FIELDS) x[k] = k === 'dueTime' && !s.courseId ? '' : s[k];
+  }
+}
+export function endSeries(seriesId) {
+  const s = state.taskSeries.find((x) => x.id === seriesId);
+  if (s) s.ended = true;
+}
+
 export function deleteTask(id) {
   const i = state.tasks.findIndex((t) => t.id === id);
   if (i >= 0) state.tasks.splice(i, 1);

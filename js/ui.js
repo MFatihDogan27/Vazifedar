@@ -67,7 +67,9 @@ export function openModal({ title, body, actions = [], wide = false, onClose }) 
       h('button', { class: 'icon-btn', 'aria-label': 'Kapat', onclick: close }, '✕')),
     h('div', { class: 'modal-body' }, body),
     actions.length ? footer : null);
-  const overlay = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === overlay) close(); } }, dialog);
+  // Açılışı tetikleyen dokunuşun (ör. uzun basma) arkadan gelen fare olayı pencereyi hemen kapatmasın
+  const openedAt = Date.now();
+  const overlay = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === overlay && Date.now() - openedAt > 400) close(); } }, dialog);
   root.append(overlay);
   modalStack.push(overlay);
   document.addEventListener('keydown', onKey);

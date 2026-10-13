@@ -3,6 +3,7 @@ import { h, openModal, confirmDialog, toast, field } from './ui.js';
 import {
   state, commit, uid, category, upsertEvent, deleteEvent, findConflictsFor, findFreeSlot,
   courseSessionConflicts, upsertTask, deleteTask, ONCELIKLER, PALET, dueDate,
+  createSeries, updateSeriesFrom, endSeries, seriesOf,
   absenceInfo, toggleAbsence, suggestAbsenceLimit, skipOccurrence, endSeriesBefore,
 } from './store.js';
 import {
@@ -13,6 +14,8 @@ import { SIKLIK, describe, alignStart, isRecurring } from './recurrence.js';
 import { ic } from './icons.js';
 import { pinSection } from './notes.js';
 import { applyTexture, textureKey, themedCard } from './themes.js';
+// "Her salı, 8 Ocak tarihine kadar" → cümle içinde: yalnız ilk harf küçülür
+const lcFirst = (x) => x.charAt(0).toLocaleLowerCase('tr') + x.slice(1);
 
 const HATIRLATMA = [
   [null, 'Hatırlatma yok'], [0, 'Başladığında'], [10, '10 dk önce'], [30, '30 dk önce'],
@@ -222,7 +225,7 @@ export function openEventForm(initial = {}) {
         if (series && occDate) {
           const choice = await choiceDialog({
             title: 'Tekrarlayan plan silinsin mi?',
-            message: `"${existing.title}" bir serinin parçası (${describe(existing.recur, existing.start).toLocaleLowerCase('tr')}).`,
+            message: `"${existing.title}" bir serinin parçası (${lcFirst(describe(existing.recur, existing.start))}).`,
             choices: [
               { value: null, label: 'Vazgeç' },
               { value: 'all', label: 'Tüm seri', kind: 'danger ghost' },
@@ -408,7 +411,7 @@ export function conflictDialog(data, conflicts) {
           c.location ? ` · ${c.location}` : '')))));
     const days = recurring ? new Set(conflicts.map((c) => toDateKey(c.on))).size : 0;
     const intro = recurring
-      ? [h('strong', {}, `"${data.title}"`), ` (${describe(data.recur, data.start).toLocaleLowerCase('tr')}) önümüzdeki dönemde ${days} tekrarda başka kayıtlarla çakışıyor:`]
+      ? [h('strong', {}, `"${data.title}"`), ` (${lcFirst(describe(data.recur, data.start))}) önümüzdeki dönemde ${days} tekrarda başka kayıtlarla çakışıyor:`]
       : [h('strong', {}, `"${data.title}"`), ` (${fmtRange(st, en, false)}) şu ${conflicts.length > 1 ? 'kayıtlarla' : 'kayıtla'} çakışıyor:`];
     const body = h('div', { class: 'conflict' },
       h('p', {}, intro),
@@ -625,7 +628,40 @@ export function openTaskForm(taskId, preset = {}) {
     dueTime.hidden = !isHw;
     if (isHw && !existing && dersCat && cat.value !== dersCat) cat.value = dersCat;
   };
-  course.onchange = syncCourse;
+  // Tekrar: "her hafta Lab föyü" gibi. Tarihi geçince sıradaki tekrar kendiliğinden eklenir.
+  const ser = existing ? seriesOf(existing) : null;
+  const curRec = ser?.recur || preset.recur || null;
+  const recKey = (r) => (r?.freq ? `${r.freq}${Math.max(1, Number(r.interval) || 1)}` : '');
+  const TEKRAR = [['', 'Tekrarlanmaz'], ['weekly1', 'Her hafta'], ['weekly2', '2 haftada bir'], ['daily1', 'Her gün'], ['monthly1', 'Her ay']];
+  if (curRec && !TEKRAR.some(([v]) => v === recKey(curRec))) TEKRAR.push([recKey(curRec), describe({ ...curRec, until: '' }, `${t.due || toDateKey(new Date())}T00:00`)]);
+  const rep = select(TEKRAR, recKey(curRec));
+  const until = h('input', { type: 'date', value: curRec?.until || '' });
+  const repHint = h('span', { class: 'field-hint' });
+  const untilField = h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Bitiş'), until, h('span', { class: 'field-hint' }, 'Boşsa süresiz'));
+  const recurFromForm = () => {
+    if (!rep.value) return null;
+    const freq = rep.value.replace(/\d+$/, '');
+    const interval = Number(rep.value.match(/\d+$/)[0]);
+    // Birden çok günlü haftalık kural (hızlı eklemeden "her pazartesi ve çarşamba") korunur
+    const multi = curRec && recKey(curRec) === rep.value && (curRec.byDay || []).length > 1;
+    const byDay = freq !== 'weekly' ? [] : multi ? curRec.byDay.map(Number) : (due.value ? [isoWeekday(parseLocal(due.value))] : []);
+    return { freq, interval, byDay, until: until.value };
+  };
+  const syncRep = () => {
+    untilField.hidden = !rep.value;
+    if (!rep.value) { repHint.textContent = ''; return; }
+    repHint.textContent = due.value
+      ? `${describe(recurFromForm(), `${due.value}T00:00`)}. Tarihi geçince sıradaki kendiliğinden eklenir.`
+      : 'Tekrar için tarih gir: ilk tekrar o gün olur.';
+  };
+  rep.onchange = () => {
+    if (rep.value && !until.value && course.value && state.term.end && state.term.end > (due.value || '')) until.value = state.term.end;
+    syncRep();
+  };
+  due.addEventListener('change', syncRep); until.addEventListener('change', syncRep);
+  syncRep();
+
+  course.onchange = () => { syncCourse(); syncRep(); };
   syncCourse();
 
   const form = h('form', { class: 'form', onsubmit: (e) => e.preventDefault() },
@@ -633,11 +669,13 @@ export function openTaskForm(taskId, preset = {}) {
     field('Öncelik', prRow),
     state.courses.length ? h('div', { class: 'grid-2' }, field('Ders', course), field('Kategori', cat)) : field('Kategori', cat),
     h('div', { class: 'grid-2' }, dueField, field('Tahmini süre', est)),
+    h('div', { class: 'grid-2' }, h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Tekrar'), rep, repHint), untilField),
     field('Notlar', notes));
 
   const actions = [];
   if (existing) actions.push({
     label: 'Sil', kind: 'danger ghost left', onClick: async (_, close) => {
+      if (ser) { seriesDeleteDialog(existing, ser, close); return; }
       if (await confirmDialog({ title: 'Görev silinsin mi?', message: existing.title, okLabel: 'Sil', danger: true })) { deleteTask(existing.id); close(); toast('Görev silindi'); }
     },
   });
@@ -651,17 +689,56 @@ export function openTaskForm(taskId, preset = {}) {
   const submit = (close) => {
     if (!title.value.trim()) { title.focus(); toast('Görev adı boş olamaz', { kind: 'warn' }); return; }
     if (course.value && !due.value) { due.focus(); toast('Ödev için teslim tarihi gir', { kind: 'warn' }); return; }
-    upsertTask({
-      ...(existing ? { id: existing.id } : {}), title: title.value.trim(), priority: pr, categoryId: cat.value,
+    const recur = recurFromForm();
+    if (recur && !due.value) { due.focus(); toast('Tekrar için tarih gir: ilk tekrar o gün olur', { kind: 'warn' }); return; }
+    if (recur?.until && recur.until < due.value) { until.focus(); toast('Tekrarın bitişi ilk tarihten önce olamaz', { kind: 'warn' }); return; }
+    const data = {
+      title: title.value.trim(), priority: pr, categoryId: cat.value,
       courseId: course.value, due: due.value, dueTime: course.value ? (dueTime.value || '23:59') : '',
       estimateMin: Number(est.value), notes: notes.value.trim(),
-    });
-    close(); toast(existing ? 'Görev güncellendi' : (course.value ? 'Ödev eklendi' : 'Görev eklendi'));
+    };
+    const what = course.value ? 'Ödev' : 'Görev';
+    if (!existing && recur) {
+      createSeries(data, recur);
+      close(); toast(`Tekrarlayan ${what.toLocaleLowerCase('tr')} eklendi: ${lcFirst(describe(recur, `${data.due}T00:00`))}`, { ms: 5000 });
+      return;
+    }
+    const tk = upsertTask({ ...(existing ? { id: existing.id } : {}), ...data });
+    if (existing && ser && recur) { updateSeriesFrom(tk, recur); commit('tasks'); }
+    else if (existing && ser && !recur) { endSeries(ser.id); delete tk.seriesId; commit('tasks'); toast('Tekrar kaldırıldı; bu görev yerinde kaldı'); close(); return; }
+    else if (existing && !ser && recur) { createSeries(data, recur, { task: tk }); toast(`${what} artık tekrarlıyor: ${lcFirst(describe(recur, `${data.due}T00:00`))}`, { ms: 5000 }); close(); return; }
+    close(); toast(existing ? `${what} güncellendi${ser ? ' (sonraki tekrarlar da)' : ''}` : `${what} eklendi`);
   };
   actions.push({ label: existing ? 'Kaydet' : 'Ekle', kind: 'primary', onClick: (_, close) => submit(close) });
   const isHw = !!t.courseId;
-  const m = openModal({ title: existing ? (isHw ? 'Ödevi düzenle' : 'Görevi düzenle') : (isHw ? 'Yeni ödev' : 'Yeni görev'), body: form, actions });
+  const m = openModal({ title: existing ? `${ser ? 'Tekrarlayan ' : ''}${isHw ? (ser ? 'ödevi' : 'Ödevi') : (ser ? 'görevi' : 'Görevi')} düzenle` : (isHw ? 'Yeni ödev' : 'Yeni görev'), body: form, actions });
   title.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submit(m.close); } });
+}
+
+// Tekrarlayan bir görevi silerken: yalnız bu tekrar mı, seri mi?
+function seriesDeleteDialog(t, s, closeForm) {
+  openModal({
+    title: 'Tekrarlayan görevi sil',
+    body: h('p', {}, `"${t.title}" bir serinin parçası (${lcFirst(describe(s.recur, `${s.start}T00:00`))}).`),
+    actions: [
+      { label: 'Vazgeç', onClick: (_, close) => close() },
+      {
+        label: 'Seriyi bitir', kind: 'danger ghost', onClick: (_, close) => {
+          endSeries(s.id);
+          // Açık tekrarlar gider; tamamlananlar geçmiş olarak kalır
+          state.tasks = state.tasks.filter((x) => !(x.seriesId === s.id && !x.done));
+          commit('tasks'); close(); closeForm(); toast('Seri bitirildi');
+        },
+      },
+      {
+        label: 'Yalnız bunu sil', kind: 'danger', onClick: (_, close) => {
+          deleteTask(t.id); close(); closeForm();
+          const next = s.lastKey > t.due ? '' : '; sıradaki, bu tarih geçince gelir';
+          toast(`Bu tekrar silindi${next}`);
+        },
+      },
+    ],
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,11 +1,13 @@
 // Hızlı ekleme kutusu: yazarken ne anlaşıldığını gösterir, Enter ile ekler.
 import { h, toast } from './ui.js';
-import { state, category, upsertEvent, deleteEvent, upsertTask, deleteTask, findConflictsFor } from './store.js';
+import { state, commit, category, upsertEvent, deleteEvent, upsertTask, deleteTask, findConflictsFor, createSeries, endSeries } from './store.js';
 import { parseLocal, fmtDateLong, timeStr, fmtRange, toLocalISO, relativeDays } from './dates.js';
 import { describe, alignStart } from './recurrence.js';
 import { parseQuick } from './quickadd.js';
 import { openEventForm, openTaskForm, conflictDialog } from './forms.js';
 import { ic } from './icons.js';
+// "Her salı, 8 Ocak tarihine kadar" → cümle içinde: yalnız ilk harf küçülür
+const lcFirst = (x) => x.charAt(0).toLocaleLowerCase('tr') + x.slice(1);
 
 export function mountQuickAdd(slot) {
   const input = h('input', {
@@ -30,7 +32,8 @@ export function mountQuickAdd(slot) {
       rows.push(h('div', { class: 'qa-main' }, h('span', { class: 'qa-ic', style: { color: course(p.courseId)?.color } }, ic('book', { size: 18 })),
         h('strong', {}, `${c?.code || c?.name} · ${p.title}`),
         p.due ? h('span', {}, `teslim ${fmtDateLong(parseLocal(p.due))} ${p.dueTime} (${relativeDays(parseLocal(p.due))})`) : h('span', { class: 'qa-miss' }, 'teslim tarihi anlaşılamadı')));
-      rows.push(h('div', { class: 'qa-tags' }, h('span', { class: 'qa-tag' }, 'Ödev olarak eklenecek')));
+      rows.push(h('div', { class: 'qa-tags' }, h('span', { class: 'qa-tag' }, p.recur ? 'Tekrarlayan ödev olarak eklenecek' : 'Ödev olarak eklenecek'),
+        p.recur && p.due ? h('span', { class: 'qa-tag' }, ic('repeat', { size: 13 }), ` ${describe(p.recur, `${p.due}T00:00`)}`) : null));
     } else if (p.ok) {
       const cat = category(p.categoryId);
       const st = parseLocal(p.start), en = parseLocal(p.end);
@@ -51,7 +54,7 @@ export function mountQuickAdd(slot) {
   }
 
   function openForm(p) {
-    if (p.type === 'odev') openTaskForm(null, { title: p.title, courseId: p.courseId, due: p.due, dueTime: p.dueTime });
+    if (p.type === 'odev') openTaskForm(null, { title: p.title, courseId: p.courseId, due: p.due, dueTime: p.dueTime, ...(p.recur ? { recur: p.recur } : {}) });
     else openEventForm({ title: p.title, categoryId: p.categoryId, ...(p.start ? { start: p.start, end: p.end } : {}), allDay: p.allDay, location: p.location, recur: p.recur });
   }
 
@@ -61,6 +64,14 @@ export function mountQuickAdd(slot) {
     if (!p) return;
     clear();
     if (toForm || !p.ok) { openForm(p); return; }
+    if (p.type === 'odev' && p.recur) {
+      const t = createSeries({ title: p.title, courseId: p.courseId, due: p.due, dueTime: p.dueTime, priority: 'yuksek', categoryId: state.taskCategories.find((c) => c.id === 'ders')?.id || '', estimateMin: 60, notes: '' }, p.recur);
+      const sid = t.seriesId;
+      toast(`Tekrarlayan ödev eklendi: ${course(p.courseId)?.code || ''} ${t.title}, ${lcFirst(describe(p.recur, `${p.due}T00:00`))}`, {
+        ms: 6000, action: { label: 'Geri al', onClick: () => { endSeries(sid); state.tasks = state.tasks.filter((x) => x.seriesId !== sid); state.taskSeries = state.taskSeries.filter((x) => x.id !== sid); commit('tasks'); } },
+      });
+      return;
+    }
     if (p.type === 'odev') {
       const t = upsertTask({ title: p.title, courseId: p.courseId, due: p.due, dueTime: p.dueTime, priority: 'yuksek', categoryId: state.taskCategories.find((c) => c.id === 'ders')?.id || '' });
       toast(`Ödev eklendi: ${course(p.courseId)?.code || ''} ${t.title}`, { action: { label: 'Geri al', onClick: () => deleteTask(t.id) } });

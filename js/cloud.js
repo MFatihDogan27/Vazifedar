@@ -13,7 +13,7 @@ const BASE_KEY = 'vazifedar:cloudbase';
 const DRIVE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 
-const LISTS = ['courses', 'tasks', 'notes', 'categories', 'taskCategories']; // id'li diziler
+const LISTS = ['courses', 'tasks', 'taskSeries', 'notes', 'categories', 'taskCategories']; // id'li diziler
 const MAPS = ['journal', 'archive'];                                          // tarih → kayıt
 const SINGLES = ['term'];                                                     // tek nesne
 export const CLOUD_KEYS = [...LISTS, ...MAPS, ...SINGLES];

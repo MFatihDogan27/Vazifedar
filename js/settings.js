@@ -249,6 +249,9 @@ function googleSection(rerender) {
     status,
     connected ? h('div', { class: 'grid-2' }, field('Eşitlenecek takvim', calSel), field('Otomatik eşitleme', autoSel)) : null,
     connected ? field('Görevler Google Takvim\'de', taskSel, taskHint) : null,
+    connected ? h('div', { class: 'field' },
+      toggle(s.autoReauth !== false, (v) => { s.autoReauth = v; commit('settings'); }, 'Oturum düşünce uygulamaya ilk dokunuşta kendiliğinden yenile').el,
+      h('span', { class: 'field-hint' }, 'Google oturumu yaklaşık saatte bir, telefonda da uygulama her açıldığında yenilenmek ister. Açıksa "Yeniden bağlan"a basman gerekmez; Google penceresi bir an açılıp kapanır.')) : null,
     connected ? cloudBlock(rerender) : null,
     connected ? h('div', { class: 'row' }, h('button', {
       class: 'btn small ghost', onclick: () => { const n = G.markAllLocalForSync(); toast(n ? `${n} plan Google'a gönderilecek` : 'Gönderilmemiş plan yok'); },

@@ -73,8 +73,10 @@ function ensureTokenClient() {
 }
 
 // Kullanıcı tıklamasıyla çağrılmalı (açılır pencere engellenmesin diye önce GIS yüklenmiş olmalı)
+let connecting = null; // aynı anda iki izin penceresi açılmasın
 export function connect() {
-  return new Promise((resolve, reject) => {
+  if (connecting) return connecting;
+  connecting = new Promise((resolve, reject) => {
     if (!isConfigured()) { reject(new Error('Önce Ayarlar\'a Google OAuth istemci kimliğini gir.')); return; }
     const go = () => {
       const tc = ensureTokenClient();
@@ -99,11 +101,16 @@ export function connect() {
         setStatus('error', err?.type === 'popup_closed' ? 'Google penceresi kapatıldı' : 'Google penceresi açılamadı (açılır pencere engelleyiciyi kontrol et)');
         reject(new Error(err?.type || 'popup'));
       };
-      tc.requestAccessToken({ prompt: state.settings.googleConnected && !needsConsent() ? '' : 'consent' });
+      // Hesap ipucu: birden çok Google hesabı açıksa hesap seçme ekranı çıkmasın
+      const cfg = { prompt: state.settings.googleConnected && !needsConsent() ? '' : 'consent' };
+      if (state.settings.googleEmail) { cfg.hint = state.settings.googleEmail; cfg.login_hint = state.settings.googleEmail; }
+      tc.requestAccessToken(cfg);
     };
     if (window.google?.accounts?.oauth2) go();
     else loadGis().then(go, (e) => { setStatus('error', e.message); reject(e); });
   });
+  connecting.then(() => { connecting = null; }, () => { connecting = null; });
+  return connecting;
 }
 
 export function disconnect() {
@@ -112,6 +119,7 @@ export function disconnect() {
   try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* yok say */ }
   state.settings.googleConnected = false;
   state.settings.googleScopes = '';
+  state.settings.googleEmail = '';
   commit('settings');
   setCloud('off');
   setStatus('off', '');
@@ -349,6 +357,10 @@ export function sync({ interactive = false, cloudOnly = false } = {}) {
     setStatus('syncing', 'Eşitleniyor…');
     try {
       if (!cloudOnly) {
+        // Oturum yenilenirken hesap ipucu olarak kullanılacak adres (birincil takvimin kimliği)
+        if (!state.settings.googleEmail) {
+          try { state.settings.googleEmail = (await api('GET', '/calendars/primary', { query: { fields: 'id' } }))?.id || ''; } catch (e) { if (e.status === 401) throw e; }
+        }
         await push();
         await pull();
         state.settings.lastSync = new Date().toISOString();

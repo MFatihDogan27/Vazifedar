@@ -221,9 +221,25 @@ function finalize(r, now) {
     ok: false, hasWhen: !!(r.date || r.time !== null || r.recur),
   };
   const today = startOfDay(now);
+  // Tekrarın ilk tarihi: haftalık kuralda bugünden itibaren ilk uygun gün (bugünün saati geçtiyse sonraki)
+  const firstRecur = () => {
+    if (r.recur.freq === 'weekly' && r.recur.byDay.length) {
+      for (let i = 0; i < 8; i++) {
+        const d = addDays(today, i);
+        const passed = i === 0 && r.time !== null && r.time <= now.getHours() * 60 + now.getMinutes();
+        if (r.recur.byDay.includes(isoWeekday(d)) && !passed) return d;
+      }
+    }
+    return today;
+  };
 
   if (out.type === 'odev') {
-    const d = r.date || (r.time !== null ? today : null);
+    const d = r.date || (r.recur ? firstRecur() : null) || (r.time !== null ? today : null);
+    // Tekrarlayan ödev: haftalık kuralın günü teslim günü; bitiş verilmediyse dönem sonu
+    if (r.recur && d) {
+      if (r.recur.freq === 'weekly' && !r.recur.byDay.length) r.recur.byDay = [isoWeekday(d)];
+      if (!r.recur.until && state.term.end && state.term.end > toDateKey(d)) r.recur.until = state.term.end;
+    }
     if (d) { out.due = toDateKey(d); out.dueTime = r.time !== null ? minToHm(r.time) : '23:59'; }
     if (!out.title) out.title = 'Ödev';
     out.ok = !!out.due;
@@ -231,17 +247,7 @@ function finalize(r, now) {
   }
 
   let date = r.date;
-  if (!date && r.recur) {
-    // İlk tekrarın tarihi
-    date = today;
-    if (r.recur.freq === 'weekly' && r.recur.byDay.length) {
-      for (let i = 0; i < 8; i++) {
-        const d = addDays(today, i);
-        const passed = i === 0 && r.time !== null && r.time <= now.getHours() * 60 + now.getMinutes();
-        if (r.recur.byDay.includes(isoWeekday(d)) && !passed) { date = d; break; }
-      }
-    }
-  }
+  if (!date && r.recur) date = firstRecur(); // ilk tekrarın tarihi
   if (!date && r.time !== null) {
     date = r.time > now.getHours() * 60 + now.getMinutes() ? today : addDays(today, 1);
   } else if (date && r.dateFromWeekday && r.time !== null && r.time <= now.getHours() * 60 + now.getMinutes()) {

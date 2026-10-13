@@ -3,7 +3,7 @@ import { h, toast, field, confirmDialog } from './ui.js';
 import { state, commit, uid, dueDate } from './store.js';
 import { GUNLER, GUNLER_KISA, hmToMin, parseLocal, fmtDateShort, relativeDays, timeStr, daysBetween } from './dates.js';
 import { openCourseForm, openTaskForm, absenceMeter } from './forms.js';
-import { tickButton, completeTask } from './tasks.js';
+import { tickButton, completeTask, repeatTag } from './tasks.js';
 import * as G from './google.js';
 
 const PX = 46; // saat başına piksel
@@ -108,7 +108,7 @@ export function renderCourses(root) {
       return h('li', { class: `hw ${t.done ? 'done' : ''}`, style: { '--c': c?.color || '#2B47B9' } },
         tickButton(t.done, (e) => completeTask(t, e.currentTarget), t.done ? 'Teslim edilmedi olarak işaretle' : 'Teslim edildi olarak işaretle'),
         h('button', { class: 'hw-main', onclick: () => openTaskForm(t.id) },
-          h('span', { class: 'hw-course' }, c?.code || c?.name || ''),
+          h('span', { class: 'hw-course' }, c?.code || c?.name || '', repeatTag(t, { short: true })),
           h('strong', {}, t.title)),
         due ? h('span', { class: `hw-due ${late ? 'late' : n !== null && n <= 2 && !t.done ? 'soon' : ''}` },
           `${fmtDateShort(due)} ${timeStr(due)}`, h('span', { class: 'muted small' }, t.done ? 'teslim edildi' : late ? 'gecikti' : relativeDays(due))) : null);

@@ -1,6 +1,6 @@
 // Vazifedar — ana uygulama: üst çubuk, gezinme, araç çubuğu, otomatik işler.
 import { h, toast } from './ui.js';
-import { state, subscribe, dueDate, onSaveError } from './store.js';
+import { state, subscribe, dueDate, onSaveError, rollSeries } from './store.js';
 import { parseLocal, timeStr, AYLAR, toDateKey, startOfWeek, addDays } from './dates.js';
 import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor } from './calendar.js';
 import { renderTasks } from './tasks.js';
@@ -20,6 +20,7 @@ import { startReminderLoop } from './notify.js';
 import { initBackup, downloadBackup } from './backup.js';
 import { registerSW } from './pwa.js';
 import { initUpdates } from './update.js';
+import { openOnboarding } from './onboarding.js';
 
 const CLOUD_REASONS = new Set(['tasks', 'courses', 'notes', 'journal', 'archive', 'settings', 'import']);
 const UI_KEY = 'vazifedar:ui2';
@@ -246,21 +247,26 @@ viewEl.addEventListener('wheel', (e) => {
   stepZoom(dir, e);
 }, { passive: false });
 
-// Her dakika "şimdi" çizgisini ve geri sayımı tazele
-let lastMinute = -1;
-setInterval(() => {
-  const m = new Date().getMinutes();
-  if (m === lastMinute) return;
-  lastMinute = m;
+// "Şimdi" çizgisini ve geri sayımı tazele (Bugün ve haftalık takvim)
+function refreshLive() {
   archiveTick(); // gün dönünce önceki günün kadranını arşive al (eksik gün yoksa bir şey yapmaz)
   // Bir kutuya yazarken ekranı yenileme (yazı ve imleç kaybolmasın)
   const ae = document.activeElement;
   if (ae && viewEl.contains(ae) && ae.matches('input, textarea, select')) return;
+  if (rollSeries()) return; // tarihi geçen tekrarlayan görevin sıradakini ekledi (commit ekranı yeniden çizdi)
   if (ui.view === 'today' && !document.querySelector('.overlay')) renderMain();
   else if (ui.view === 'calendar' && ui.mode === 'week' && !document.querySelector('.overlay')) {
     const sc = document.querySelector('.wk-scroll'); const top = sc?.scrollTop;
     renderMain(); const sc2 = document.querySelector('.wk-scroll'); if (sc2 && top !== undefined) requestAnimationFrame(() => { sc2.scrollTop = top; });
   }
+}
+// Her dakika
+let lastMinute = -1;
+setInterval(() => {
+  const m = new Date().getMinutes();
+  if (m === lastMinute) return;
+  lastMinute = m;
+  refreshLive();
 }, 20000);
 
 // Otomatik Google eşitleme
@@ -273,14 +279,44 @@ function autoSync() {
   G.sync();
 }
 setInterval(autoSync, 60000);
-window.addEventListener('focus', () => {
-  if (state.settings.googleConnected && G.hasToken() && Date.now() - lastAuto > 2 * 60000) { lastAuto = Date.now(); G.sync(); }
-});
+
+// Uygulamaya geri dönünce (telefonda arka plandan, bilgisayarda başka pencereden): ekranı tazele,
+// eşitle. Telefona yüklü uygulamada "focus" güvenilir gelmez; görünürlük değişimi ve sayfa geri
+// yüklenmesi (pageshow) de dinlenir. Aynı dönüşte birden çok olay gelirse bir kez çalışır.
+let lastReturn = 0;
+function onReturn() {
+  if (Date.now() - lastReturn < 2000) return;
+  lastReturn = Date.now();
+  refreshLive();
+  const s = state.settings;
+  if (!s.googleConnected) return;
+  if (!G.hasToken()) { renderSync({ state: 'needs-auth', message: 'Google oturumu yenilenmeli' }); return; }
+  if (Date.now() - lastAuto > 2 * 60000) { lastAuto = Date.now(); G.sync(); }
+}
+window.addEventListener('focus', onReturn);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onReturn(); });
+window.addEventListener('pageshow', (e) => { if (e.persisted) onReturn(); });
+
+// Google oturumu düştüyse (yaklaşık saatte bir; telefonda uygulama her açıldığında) "Yeniden bağlan"a
+// basmayı beklemeden uygulamadaki ilk dokunuşta yenile. Tarayıcılar Google penceresini yalnız bir
+// dokunuşla açtırır; izin daha önce verildiği için pencere bir an açılıp kendiliğinden kapanır.
+let reauthAt = 0;
+document.addEventListener('click', (e) => {
+  const s = state.settings;
+  if (!s.googleConnected || !s.googleClientId || s.autoReauth === false || G.hasToken() || G.needsConsent()) return;
+  if (!window.google?.accounts?.oauth2) return; // Google betiği yüklenmeden açılan pencere engellenir
+  // Eşitleme düğmesi ve Google ayarları kendi işini yapsın ("Bağlantıyı kes" yanlışlıkla bağlamasın)
+  if (e.target.closest?.('#side-sync, .g-card, .cloud-block, [data-no-reauth]')) return;
+  if (Date.now() - reauthAt < 10 * 60000) return; // pencere kapatıldıysa ısrar etme
+  reauthAt = Date.now();
+  G.sync({ interactive: true });
+}, true);
 
 // ---------- Başlat ----------
 applyTheme();
 injectTextureCSS();
 archiveTick();
+rollSeries(); // açılışta tarihi geçen tekrarlayan görevlerin sıradakini ekle
 // Uygulama kısayolları (yüklü uygulamanın simgesine sağ tık / uzun bas): ?bolum=tasks, ?yeni=plan|gorev
 const params = new URLSearchParams(location.search);
 const wantView = params.get('bolum');
@@ -290,6 +326,8 @@ const wantNew = params.get('yeni');
 if (wantNew === 'plan') openEventForm({});
 else if (wantNew === 'gorev') openTaskForm();
 if (params.has('bolum') || params.has('yeni')) history.replaceState(null, '', location.pathname);
+// Yeni kullanıcı: ilk açılış kurulumu (şehir, plan türleri, dönem)
+if (!state.settings.onboarded && !wantNew) openOnboarding(setView);
 startReminderLoop();
 initBackup();
 registerSW();

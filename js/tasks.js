@@ -1,7 +1,8 @@
 // Görevler: belirli bir güne bağlı olmayan, "bir ara yapılacak" işler.
-import { h, toast, celebrate } from './ui.js';
+import { h, toast, celebrate, openModal } from './ui.js';
 import { ic } from './icons.js';
-import { state, commit, upsertTask, ONCELIKLER, taskCategory, priority } from './store.js';
+import { state, commit, upsertTask, ONCELIKLER, taskCategory, priority, seriesOf } from './store.js';
+import { describe } from './recurrence.js';
 import { parseLocal, daysBetween, fmtDateShort, timeStr, durationText } from './dates.js';
 import { openTaskForm, openScheduleTask } from './forms.js';
 
@@ -27,6 +28,63 @@ export function dueInfo(t, now = new Date()) {
 }
 
 const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+// Tekrarlayan görevin küçük etiketi: "↻ Her salı"
+export function repeatTag(t, { short = false } = {}) {
+  const s = seriesOf(t);
+  if (!s) return null;
+  const full = describe(s.recur, `${s.start}T00:00`);
+  return h('span', { class: 'repeat-tag', title: full, 'aria-label': full }, ic('repeat', { size: 13 }), short ? null : describe({ ...s.recur, until: '' }, `${s.start}T00:00`));
+}
+// Fare/dokunmatik yüzey: sürükle-bırak. Dokunmatik ekranda sürükle-bırak güvenilir çalışmaz:
+// göreve basılı tutunca öncelik menüsü açılır (bilgisayarda sağ tık da açar).
+const finePointer = () => !!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+
+export function openPriorityMenu(t) {
+  const m = openModal({
+    title: t.title,
+    body: h('div', { class: 'prio-pick', role: 'radiogroup', 'aria-label': 'Öncelik' },
+      ONCELIKLER.map((p) => h('button', {
+        type: 'button', class: `prio-opt ${p.id === t.priority ? 'on' : ''}`, role: 'radio', 'aria-checked': String(p.id === t.priority), style: { '--c': p.color },
+        onclick: () => {
+          m.close();
+          if (t.priority === p.id) return;
+          const old = t.priority;
+          t.priority = p.id; commit('tasks');
+          toast(`"${t.title}" → ${p.name}`, { action: { label: 'Geri al', onClick: () => { t.priority = old; commit('tasks'); } } });
+        },
+      }, h('span', { class: 'dot' }), h('strong', {}, p.name), h('span', { class: 'muted small' }, p.hint)))),
+    actions: [
+      { label: 'Takvime yerleştir', onClick: (e, close) => { close(); openScheduleTask(t.id); } },
+      { label: 'Düzenle', kind: 'primary', onClick: (e, close) => { close(); openTaskForm(t.id); } },
+    ],
+  });
+}
+
+let menuAt = 0;
+function menuOnce(t) {
+  if (Date.now() - menuAt < 800) return; // Android'de uzun basma hem zamanlayıcıyı hem sağ tık olayını tetikler
+  menuAt = Date.now();
+  openPriorityMenu(t);
+}
+function pressMenu(el, t) {
+  let firedAt = 0;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || t.done) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    let timer = null;
+    const stop = () => {
+      clearTimeout(timer);
+      el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', stop); el.removeEventListener('pointercancel', stop);
+    };
+    const move = (ev) => { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 10) stop(); }; // kaydırıyorsa menü açma
+    timer = setTimeout(() => { stop(); firedAt = Date.now(); navigator.vibrate?.(12); menuOnce(t); }, 500);
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', stop); el.addEventListener('pointercancel', stop);
+  });
+  // Uzun basmanın ardından gelen tıklama görevi açmasın
+  el.addEventListener('click', (e) => { if (Date.now() - firedAt < 1000) { e.preventDefault(); e.stopPropagation(); } }, true);
+  el.addEventListener('contextmenu', (e) => { if (t.done) return; e.preventDefault(); menuOnce(t); });
+}
 
 // Tik işareti: tamamlanınca çizilerek belirir
 export function tickButton(done, onClick, label) {
@@ -62,7 +120,7 @@ function card(t) {
   const age = daysBetween(new Date(t.createdAt), new Date());
   const ev = t.scheduledEventId ? state.events.find((e) => e.id === t.scheduledEventId && !e.deleted) : null;
   const el = h('article', {
-    class: `task ${t.done ? 'done' : ''}`, draggable: t.done ? null : 'true', style: { '--c': priority(t.priority).color }, dataset: { id: t.id },
+    class: `task ${t.done ? 'done' : ''}`, draggable: t.done || !finePointer() ? null : 'true', style: { '--c': priority(t.priority).color }, dataset: { id: t.id },
   },
   tickButton(t.done, (e) => toggleDone(t, e)),
   h('div', { class: 'task-main' },
@@ -71,6 +129,7 @@ function card(t) {
       course ? h('span', { class: 'course-tag', style: { '--c': course.color } }, ic('book', { size: 13 }), ` ${course.code || course.name}`) : null,
       t.categoryId && !course ? h('span', { class: 'tag', style: { '--c': cat.color } }, cat.name) : null,
       di && !t.done ? h('span', { class: `due ${di.cls}` }, di.text) : null,
+      repeatTag(t),
       h('span', { class: 'muted' }, durationText(t.estimateMin || 60)),
       !t.done && !t.due && age >= 7 ? h('span', { class: 'stale', title: 'Uzun süredir bekliyor' }, `${age} gündür bekliyor`) : null,
       ev ? h('span', { class: 'sched' }, ic('calendar', { size: 13 }), ` ${fmtDateShort(parseLocal(ev.start))} ${timeStr(parseLocal(ev.start))}`) : null),
@@ -78,6 +137,7 @@ function card(t) {
   t.done ? null : h('button', { class: 'icon-btn sched-btn', title: 'Takvimde boş bir zamana yerleştir', 'aria-label': 'Takvime yerleştir', onclick: () => openScheduleTask(t.id) }, ic('calendarPlus', { size: 17 })));
   el.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', t.id); el.classList.add('dragging'); });
   el.addEventListener('dragend', () => el.classList.remove('dragging'));
+  pressMenu(el, t);
   return el;
 }
 
@@ -114,7 +174,7 @@ export function renderTasks(root) {
     const list = sortTasks(open.filter((t) => t.priority === p.id));
     const col = h('section', { class: 'lane', style: { '--c': p.color }, dataset: { pr: p.id } },
       h('header', { class: 'lane-head' }, h('span', { class: 'dot' }), h('h3', {}, p.name), h('span', { class: 'muted small' }, p.hint), h('span', { class: 'lane-count' }, list.length)),
-      h('div', { class: 'lane-list' }, list.length ? list.map(card) : h('p', { class: 'lane-empty' }, 'Görevleri buraya sürükleyebilirsin')),
+      h('div', { class: 'lane-list' }, list.length ? list.map(card) : h('p', { class: 'lane-empty' }, finePointer() ? 'Görevleri buraya sürükleyebilirsin' : 'Önceliğini değiştirmek için göreve basılı tut')),
       h('button', { class: 'lane-add', onclick: () => openTaskForm(null, { priority: p.id, categoryId: filterCat }) }, '+ Görev'));
     col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('drop'); });
     col.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) col.classList.remove('drop'); });

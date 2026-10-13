@@ -33,6 +33,8 @@ Adresi aç, sonra:
 
 Yüklenince kendi simgesiyle ayrı pencerede açılır ve internet yokken de çalışır. Bilgisayarda simgeye sağ tıklayınca (telefonda uzun basınca) Yeni plan / Yeni görev / Takvim / Defter kısayolları çıkar.
 
+İlk açılışta Vazifedar üç kısa soru sorar: hangi şehirde olduğun (namaz vakitleri için; istersen kapatırsın), hangi plan türlerini kullanacağın (Konser, Halısaha, Arkadaşlar, Roket takımı ya da kendi yazdığın türler) ve dönem tarihlerin. Hepsini atlayabilir, sonra Ayarlar'dan değiştirebilirsin. Vazifedar'ı başka bir cihazda zaten kullanıyorsan atla ve aynı Google hesabıyla bağlan; verilerin gelir.
+
 ### 2. Dönemini ve derslerini gir
 
 **Dersler** sekmesi (sayfanın adı **Ders programı**):
@@ -115,7 +117,8 @@ Kimseye bağlı kalmak istemiyorsan aşağıdaki [Google Cloud kurulumu](#google
 - Eşitleme kendiliğinden 10 dakikada bir, uygulamaya geri döndüğünde ve bir değişiklikten birkaç saniye sonra çalışır. Üst çubuktaki eşitleme düğmesine basarak elle de eşitleyebilirsin.
 - Bir görev, ders ya da not iki cihazda birden değiştiyse alan alan birleşir: telefonda bir görevi tamamlayıp bilgisayarda başlığını düzelttiysen ikisi de kalır. Aynı şeyi (ör. aynı görevin başlığını) iki yerde farklı değiştirdiysen en son yapılan değişiklik kazanır. Bir cihazda silinip öbüründe değiştirilen kayıt silinmez. İlk eşitlemede hiçbir şey silinmez, iki taraf birleşir.
 - Bir değişiklik tarayıcıya kaydedilemezse (depolama dolu ya da kapalı) Vazifedar uyarır ve **Yedek indir** düğmesi gösterir.
-- Google oturumu yaklaşık 1 saatte bir yenilenmek ister. O zaman üst çubukta **Yeniden bağlan** çıkar; tek tıkla yenilenir.
+- Google oturumu yaklaşık 1 saatte bir (telefonda uygulama her açıldığında da) yenilenmek ister. Vazifedar bunu uygulamaya ilk dokunuşunda kendiliğinden yapar: Google penceresi bir an açılıp kapanır. İstemezsen Ayarlar → Google Takvim'den kapat; o zaman üst çubuktaki **Yeniden bağlan**'a basarsın.
+- Uygulamaya geri döndüğünde (telefonda arka plandan, bilgisayarda başka pencereden) ekran tazelenir ve son eşitlemenin üstünden 2 dakika geçtiyse eşitlenir.
 
 ### Yedek
 
@@ -155,6 +158,7 @@ Uygulama bu ekranla açılır.
 | `haftaya pazartesi saat 3 toplantı 2 saat` | Gelecek haftanın pazartesisi 15:00–17:00 |
 | `her pazartesi ve çarşamba 18:00 spor dönem sonuna kadar` | Dönem bitişine kadar haftada iki gün |
 | `ELE 271 ödev 3 cuma 17:00` | ELE 271 dersine bağlı ödev, teslim cuma 17:00 |
+| `ELE 271 föy her salı 17:00` | Her salı 17:00 teslim edilen tekrarlayan ödev, dönem sonuna kadar |
 | `bu cuma 19-22 #roket test` | `#` ile kategori seçilir |
 
 Tanıdığı ifadeler: bugün, yarın, öbür gün, haftaya/önümüzdeki + gün adı, "3 gün sonra", "15 ekim", "15/10", "20:00", "20.30", "14-16", "sabah/öğlen/akşam/gece 8", "2 saat", "90 dk", "tüm gün", "her gün/hafta/ay", "her salı ve perşembe", "iki haftada bir", "… kadar". Konum `@`, kategori `#` ile yazılır.
@@ -189,8 +193,9 @@ Hafta, Ay ve Ajanda görünümleri vardır (`H`, `A`, `J` tuşları ya da üstte
 
 ### Görevler ve ödevler
 
-- **Görevler** belirli bir güne bağlı olmayan "bir ara yapılacak" işlerdir. Dört öncelik (Acil, Yüksek, Orta, Düşük) sütun olarak durur; kartı sürükleyerek önceliğini değiştirirsin. Kategori, son tarih, tahmini süre ve not eklenebilir. Klavyede `G` yeni görev açar.
+- **Görevler** belirli bir güne bağlı olmayan "bir ara yapılacak" işlerdir. Dört öncelik (Acil, Yüksek, Orta, Düşük) sütun olarak durur; bilgisayarda kartı sürükleyerek önceliğini değiştirirsin. Telefonda göreve **basılı tut** (bilgisayarda sağ tık): öncelik seçimi, **Takvime yerleştir** ve **Düzenle** çıkar. Kategori, son tarih, tahmini süre ve not eklenebilir. Klavyede `G` yeni görev açar.
 - **Ödev**: Görev formunda bir ders seçince görev ödeve dönüşür ve teslim saati sorulur. Ödev takvimde teslim gününde, Dersler sayfasında ve Bugün ekranındaki geri sayımda görünür. Teslimden 24 saat ve 3 saat önce hatırlatılır. Google'a bağlıysan ödev telefonundaki takvime de gider ve uygulama kapalıyken de hatırlatılır. Hızlı ekleme kutusuna ders koduyla "ödev, proje, rapor, föy, teslim" yazarsan doğrudan ödev olarak eklenir.
+- **Tekrarlayan ödev ve görev**: Formdaki **Tekrar** kısmından her hafta, 2 haftada bir, her gün ya da her ay seç (ödevde bitiş kendiliğinden dönem sonu olur). Hızlı eklemede "ELE 271 föy her salı 17:00" yazman yeter. Ekranda hep sıradaki tekrar durur; tarihi geçince bir sonraki kendiliğinden eklenir (salı teslimli föyün bir sonrakisi çarşamba görünür). Kartta ↻ işaretiyle görünür. Bir tekrarı düzenlersen ad, öncelik, ders, saat ve not sonrakilere de geçer. Silerken **Yalnız bunu sil** (seri sürer) ya da **Seriyi bitir** (açık tekrarlar silinir, tamamlananlar kalır) seçersin. Tekrar kısmını "Tekrarlanmaz" yaparsan seri biter, o görev yerinde kalır. Her ayın 31'i gibi her ayda olmayan bir gün seçersen o gün olmayan aylar atlanır.
 - **Görev rafı** (Bugün ekranında): Her görev bir fiştir. Renkli koçan önceliği, üstündeki yazı da ne kadar zaman kaldığını gösterir. **Boşluğa koy** görevi bugünkü en uzun boşluğa yerleştirir; sığmıyorsa takvim düğmesi ilk uygun boş zamanı bulur. Yük çubuğu açık görevlerinin bu haftaki boş zamanına sığıp sığmadığını söyler.
 
 ### Unutma notları ve yarının çantası
@@ -245,7 +250,7 @@ Test kullanıcısı olarak eklenmemişsin. Uygulamayı paylaşan kişiden Gmail 
 Hayır. Uygulama kişisel bir proje olduğu ve Google'ın resmî incelemesinden geçmediği için çıkar. **Gelişmiş → Vazifedar'a git** ile devam edebilirsin.
 
 **Üst çubukta "Yeniden bağlan" yazıyor.**
-Google oturumu yaklaşık 1 saatte bir yenilenmek ister. Tıkla, yenilenir.
+Google oturumu yaklaşık 1 saatte bir yenilenmek ister. Normalde uygulamaya ilk dokunuşunda kendiliğinden yenilenir. Google penceresini kapattıysan ya da bu özellik kapalıysa yazıya tıkla, yenilenir. Pencere hiç açılmıyorsa tarayıcının açılır pencere engelleyicisine bak.
 
 **Telefonda başka, bilgisayarda başka şeyler görünüyor.**
 İki cihazı da aynı Google hesabıyla bağla. Planlar Google Takvim, geri kalanlar Drive üzerinden birleşir. Görünüm ve bildirim ayarları her cihazda ayrıdır.
@@ -259,8 +264,8 @@ Aynı tarayıcıda ve aynı adreste misin? Veriler adres ve tarayıcı başına 
 **iPhone'da yedek klasörü seçemiyorum.**
 Safari klasöre yazmayı desteklemiyor. Google'a bağlan ya da ara sıra **Yedek indir** de.
 
-**Hazır kategoriler bana uymuyor (Roket takımı vb.).**
-Ayarlar → Kategoriler'den değiştir ya da sil.
+**Hazır kategoriler bana uymuyor.**
+İlk açılıştaki kurulumda istemediklerini kaldırıp kendi türlerini ekleyebilirsin. Sonradan Ayarlar → Kategoriler'den değiştir ya da sil.
 
 ---
 
@@ -326,7 +331,7 @@ js/calendar.js        Hafta / Ay / Ajanda görünümleri
 js/today.js           Bugün ekranı (kadran, geri sayım, günün akışı, görev rafı)
 js/notes.js           Unutma notları, yarının çantası
 js/journal.js         Defter: kadran arşivi, gün sayfası, günlük, pul albümü
-js/tasks.js           Görev panosu
+js/tasks.js           Görev panosu, öncelik menüsü, tekrar etiketi
 js/courses.js         Ders programı sayfası
 js/term.js            Dönem haritası
 js/forms.js           Plan, ders, görev/ödev formları; çakışma; devamsızlık; takvime yerleştirme
@@ -338,6 +343,7 @@ js/google.js          Google Takvim eşitlemesi (OAuth + Calendar API, ödev tes
 js/cloud.js           Drive'daki gizli klasörle eşitleme (dersler, görevler, notlar, defter…)
 js/backup.js          Otomatik yedek
 js/notify.js          Hatırlatma bildirimleri
+js/onboarding.js      İlk açılış kurulumu (şehir, plan türleri, dönem)
 js/pwa.js             Uygulama olarak yükleme, service worker kaydı
 js/update.js          Güncelleme denetimi ve "Güncelle"
 js/theme.js           Renk temaları
