@@ -78,16 +78,16 @@ export function renderCourses(root) {
   const gCard = G.isConfigured() ? h('section', { class: 'panel' },
     h('h3', {}, 'Google Takvim'),
     h('p', { class: 'muted small' }, exported
-      ? 'Ders programın Google Takvim\'de tekrarlayan etkinlikler olarak var. Ders ya da tatil değiştirdiysen tekrar aktar.'
+      ? 'Ders programın Google Takvim\'de tekrarlayan etkinlikler olarak var. Ders, oturum, tatil ya da iptal değiştikçe kendiliğinden güncellenir. Ödev teslimleri de oraya gider (Ayarlar → Google Takvim).'
       : 'Ders programını Google Takvim\'e haftalık tekrarlayan etkinlikler olarak aktarabilirsin (telefonda da görünür).'),
     h('div', { class: 'row' },
       h('button', {
         class: 'btn', disabled: !state.courses.length, onclick: async (e) => {
           e.target.disabled = true;
-          try { const n = await G.exportCourses(); toast(`${n} ders oturumu Google Takvim'e aktarıldı`); } catch (err) { toast(err.message, { kind: 'warn', ms: 6000 }); }
+          try { const n = await G.exportCourses(); toast(`${n} ders oturumu Google Takvim'de güncel`); } catch (err) { toast(err.message, { kind: 'warn', ms: 6000 }); }
           e.target.disabled = false;
         },
-      }, exported ? 'Tekrar aktar' : 'Google Takvim\'e aktar'),
+      }, exported ? 'Şimdi güncelle' : 'Google Takvim\'e aktar'),
       exported ? h('button', {
         class: 'btn ghost', onclick: async () => {
           if (!await confirmDialog({ title: 'Dersler Google\'dan kaldırılsın mı?', message: 'Vazifedar\'daki ders programı yerinde kalır.', okLabel: 'Kaldır', danger: true })) return;

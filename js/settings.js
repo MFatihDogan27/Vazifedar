@@ -225,6 +225,12 @@ function googleSection(rerender) {
   const autoSel = h('select', {}, [[0, 'Kapalı'], [5, '5 dakikada bir'], [10, '10 dakikada bir'], [30, '30 dakikada bir']].map(([v, l]) => h('option', { value: v }, l)));
   autoSel.value = s.autoSyncMin; autoSel.onchange = () => { s.autoSyncMin = Number(autoSel.value); commit('settings'); };
 
+  // Ödevler ve son tarihli görevler Google Takvim'e (telefondaki takvimde görünsün, kapalıyken de hatırlatsın)
+  const taskSel = h('select', {}, [['odev', 'Ödev teslimleri'], ['hepsi', 'Ödevler ve son tarihli görevler'], ['kapali', 'Gönderme']].map(([v, l]) => h('option', { value: v }, l)));
+  taskSel.value = G.tasksToGoogleMode();
+  taskSel.onchange = () => { s.tasksToGoogle = taskSel.value; commit('settings'); };
+  const taskHint = 'Telefonundaki takvimde de görünür ve Vazifedar kapalıyken de hatırlatır: ödevde 1 gün ve 3 saat önce, görevde son günden bir gün önce sabah. Bu ayar cihaza özeldir.';
+
   const live = connected && G.hasToken();
   const stateCls = live ? 'ok' : connected ? 'warn' : '';
   const status = h('div', { class: `g-card ${stateCls}` },
@@ -242,6 +248,7 @@ function googleSection(rerender) {
   return section('google', 'calendar', 'Google Takvim', [
     status,
     connected ? h('div', { class: 'grid-2' }, field('Eşitlenecek takvim', calSel), field('Otomatik eşitleme', autoSel)) : null,
+    connected ? field('Görevler Google Takvim\'de', taskSel, taskHint) : null,
     connected ? cloudBlock(rerender) : null,
     connected ? h('div', { class: 'row' }, h('button', {
       class: 'btn small ghost', onclick: () => { const n = G.markAllLocalForSync(); toast(n ? `${n} plan Google'a gönderilecek` : 'Gönderilmemiş plan yok'); },

@@ -109,7 +109,9 @@ Kimseye bağlı kalmak istemiyorsan aşağıdaki [Google Cloud kurulumu](#google
 
 - Google Takvim'indeki etkinlikler (son 60 gün ile önümüzdeki 1 yıl) Vazifedar'a gelir. Kategori başlıktan tahmin edilir: "vize", "final" → Sınav; "konser" → Konser; "halısaha", "maç" → Halısaha …
 - Vazifedar'da eklediğin, değiştirdiğin ve sildiğin planlar Google'a gider. Bunu plan formundaki "Google Takvim ile eşitle" kutusu belirler. Telefonundaki takvim uygulaması da bunları gösterir.
-- Ders programını istersen Google'a haftalık tekrarlayan etkinlikler olarak aktarabilirsin: Dersler → Google Takvim → **Google Takvim'e aktar**. Ders ya da tatil değiştirdiysen **Tekrar aktar** de.
+- Ders programını istersen Google'a haftalık tekrarlayan etkinlikler olarak aktarabilirsin: Dersler → Google Takvim → **Google Takvim'e aktar**. Bir kez aktardıktan sonra ders, oturum, tatil ya da iptal değiştikçe Google'daki program kendiliğinden güncellenir. Kaldırmak için **Google'dan kaldır** de.
+- **Ödev teslimleri** de Google Takvim'e gider: teslim saatinde biten kısa bir etkinlik olarak, 1 gün ve 3 saat önce hatırlatmayla. Böylece telefonundaki takvimde görünür ve Vazifedar kapalıyken de hatırlatılır. Ödevi tamamlayınca başına ✓ gelir ve hatırlatması kalkar; silince Google'dan da silinir. Ayarlar → Google Takvim → **Görevler Google Takvim'de** kısmından son tarihli görevleri de gönderebilir (tüm gün, bir gün önce sabah 9'da hatırlatır) ya da hiçbirini göndermeyebilirsin. Bu seçim cihaza özeldir.
+- Ödevlerin ve derslerin Google'daki kopyalarını Vazifedar'dan değiştir. Google'da elle değiştirdiğin ya da sildiğin bir kopya bir sonraki eşitlemede Vazifedar'daki hâline döner.
 - Eşitleme kendiliğinden 10 dakikada bir, uygulamaya geri döndüğünde ve bir değişiklikten birkaç saniye sonra çalışır. Üst çubuktaki eşitleme düğmesine basarak elle de eşitleyebilirsin.
 - Bir kayıt iki yerde birden değiştiyse eşitlemeyi yapan cihazdaki kazanır. İlk eşitlemede hiçbir şey silinmez, iki taraf birleşir.
 - Google oturumu yaklaşık 1 saatte bir yenilenmek ister. O zaman üst çubukta **Yeniden bağlan** çıkar; tek tıkla yenilenir.
@@ -187,7 +189,7 @@ Hafta, Ay ve Ajanda görünümleri vardır (`H`, `A`, `J` tuşları ya da üstte
 ### Görevler ve ödevler
 
 - **Görevler** belirli bir güne bağlı olmayan "bir ara yapılacak" işlerdir. Dört öncelik (Acil, Yüksek, Orta, Düşük) sütun olarak durur; kartı sürükleyerek önceliğini değiştirirsin. Kategori, son tarih, tahmini süre ve not eklenebilir. Klavyede `G` yeni görev açar.
-- **Ödev**: Görev formunda bir ders seçince görev ödeve dönüşür ve teslim saati sorulur. Ödev takvimde teslim gününde, Dersler sayfasında ve Bugün ekranındaki geri sayımda görünür. Teslimden 24 saat ve 3 saat önce hatırlatılır. Hızlı ekleme kutusuna ders koduyla "ödev, proje, rapor, föy, teslim" yazarsan doğrudan ödev olarak eklenir.
+- **Ödev**: Görev formunda bir ders seçince görev ödeve dönüşür ve teslim saati sorulur. Ödev takvimde teslim gününde, Dersler sayfasında ve Bugün ekranındaki geri sayımda görünür. Teslimden 24 saat ve 3 saat önce hatırlatılır. Google'a bağlıysan ödev telefonundaki takvime de gider ve uygulama kapalıyken de hatırlatılır. Hızlı ekleme kutusuna ders koduyla "ödev, proje, rapor, föy, teslim" yazarsan doğrudan ödev olarak eklenir.
 - **Görev rafı** (Bugün ekranında): Her görev bir fiştir. Renkli koçan önceliği, üstündeki yazı da ne kadar zaman kaldığını gösterir. **Boşluğa koy** görevi bugünkü en uzun boşluğa yerleştirir; sığmıyorsa takvim düğmesi ilk uygun boş zamanı bulur. Yük çubuğu açık görevlerinin bu haftaki boş zamanına sığıp sığmadığını söyler.
 
 ### Unutma notları ve yarının çantası
@@ -215,7 +217,7 @@ Büyüteç, `Ctrl+K` ya da `F` arama penceresini açar. Planlarda, görevlerde, 
 ### Hatırlatmalar
 
 - Vazifedar açıkken (arka planda olsa da) sistem bildirimi gelir. İzin vermezsen uygulama içinde uyarır.
-- **Uygulama tamamen kapalıyken bildirim gelmez.** Telefonda kapalıyken de hatırlatma almak için Google Takvim eşitlemesini aç: hatırlatma süresi Google'a da gider, telefonun takvim uygulaması hatırlatır.
+- **Uygulama tamamen kapalıyken Vazifedar bildirim gönderemez.** Telefonda kapalıyken de hatırlatma almak için Google Takvim eşitlemesini aç: planların ve ödev teslimlerinin hatırlatmaları Google'a da gider, telefonun takvim uygulaması hatırlatır. Unutma notları ve namaz vakti hatırlatmaları yalnız Vazifedar açıkken gelir.
 - Namaz vakti hatırlatması (vakit girince ya da 5–45 dk önce) Ayarlar → Namaz vakitleri'nden açılır.
 
 ### Klavye kısayolları (bilgisayarda)
@@ -331,7 +333,7 @@ js/quickadd.js        Hızlı ekleme ayrıştırıcısı (Türkçe tarih/saat/te
 js/qa-ui.js           Hızlı ekleme kutusu
 js/search.js          Arama
 js/settings.js        Ayarlar
-js/google.js          Google Takvim eşitlemesi (OAuth + Calendar API)
+js/google.js          Google Takvim eşitlemesi (OAuth + Calendar API, ödev teslimleri, ders programı)
 js/cloud.js           Drive'daki gizli klasörle eşitleme (dersler, görevler, notlar, defter…)
 js/backup.js          Otomatik yedek
 js/notify.js          Hatırlatma bildirimleri

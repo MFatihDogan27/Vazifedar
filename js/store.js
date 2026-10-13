@@ -54,6 +54,7 @@ function defaultState() {
       googleCalendarId: 'primary',
       googleCalendarName: '',
       googleConnected: false,
+      tasksToGoogle: 'odev', // ödev teslimleri Google Takvim'e: odev | hepsi | kapali
       autoSyncMin: 10,
       lastSync: null,
       dayStartHour: 7,

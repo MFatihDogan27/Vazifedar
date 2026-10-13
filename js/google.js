@@ -1,7 +1,7 @@
 // Google Takvim eşitlemesi (tarayıcıdan, sunucusuz).
 // Google Identity Services ile erişim anahtarı alınır, Calendar API v3 doğrudan çağrılır.
-import { state, commit, uid, breakOn, inTerm } from './store.js';
-import { parseLocal, toLocalISO, toDateKey, addDays, isoWeekday } from './dates.js';
+import { state, commit, uid, breakOn, inTerm, dueDate } from './store.js';
+import { parseLocal, toLocalISO, toDateKey, addDays, addMinutes, isoWeekday } from './dates.js';
 import { isRecurring, toRecurrence } from './recurrence.js';
 import { cloudSync } from './cloud.js';
 
@@ -160,6 +160,7 @@ export function setCalendar(id, name) {
   }
   state.events = state.events.filter((e) => !e.deleted);
   for (const c of state.courses) for (const s of c.sessions) s.googleId = null;
+  clearSigs(); // ödev kopyaları yeni takvimde baştan oluşturulsun
   state.settings.googleCalendarId = id;
   state.settings.googleCalendarName = name || id;
   commit('settings');
@@ -260,7 +261,7 @@ async function pull() {
     for (const g of data?.items || []) {
       if (g.status === 'cancelled') continue;
       const priv = g.extendedProperties?.private || {};
-      if (priv.vazifedarCourse || courseGids.has(g.id) || (g.recurringEventId && courseGids.has(g.recurringEventId))) continue;
+      if (priv.vazifedarKind || priv.vazifedarCourse || priv.vazifedarTask || courseGids.has(g.id) || (g.recurringEventId && courseGids.has(g.recurringEventId))) continue;
       // Vazifedar'da tekrarlayan olarak tutulan serinin tekrarları: seri yerelde yönetiliyor
       if (g.recurringEventId) {
         const master = state.events.find((e) => e.googleId === g.recurringEventId && isRecurring(e));
@@ -353,9 +354,12 @@ export function sync({ interactive = false, cloudOnly = false } = {}) {
         state.settings.lastSync = new Date().toISOString();
       }
       await runCloud();
-      commit('sync');
+      // Drive'dan güncel liste geldikten sonra ödevleri ve ders programını Google Takvim'e uydur
+      const school = await pushSchool({ cloudOk: cloud.state === 'idle' });
+      commit(school.coursesChanged ? 'courses' : 'sync');
       if (cloud.state === 'needs-auth' && needsConsent()) setStatus('needs-auth', cloud.message);
       else if (cloud.state === 'error') setStatus('error', cloud.message);
+      else if (school.failed) setStatus('error', `${school.failed} ödev/ders Google Takvim'e gönderilemedi; bir sonraki eşitlemede yeniden denenecek`);
       else setStatus('idle', 'Eşitlendi');
       return true;
     } catch (e) {
@@ -383,14 +387,34 @@ export function schedulePush() {
   pushTimer = setTimeout(() => { sync(); }, 1500);
 }
 
-// Görev/ders/not/defter değişikliğinden birkaç saniye sonra yalnız bulut eşitlemesi
+// Görev/ders/not/defter değişikliğinden birkaç saniye sonra: Drive eşitlemesi + ödev/ders gönderimi
+// (Drive kapalı olsa da çalışır: ödev ve ders değişiklikleri Google Takvim'e de gider)
 export function scheduleCloud() {
-  if (!isConfigured() || !state.settings.googleConnected || !cloudEnabled() || !state.settings.cloudGranted || needsConsent()) return;
+  if (!isConfigured() || !state.settings.googleConnected) return;
   clearTimeout(cloudTimer);
   cloudTimer = setTimeout(() => { if (hasToken()) sync({ cloudOnly: true }); }, 4000);
 }
 
-// ---------- Ders programını Google'a aktar ----------
+// ---------- Ödevler, görevler ve ders programı → Google Takvim ----------
+// Bunların doğrusu Vazifedar'dadır; Google'daki kopyalar her eşitlemede ona uydurulur (Google'da
+// elle değiştirilen ya da silinen bir kopya bir sonraki eşitlemede eski hâline döner).
+// Etkinlik kimliği kayıttan türetilir: aynı ödev her cihazda aynı kimliği alır, iki cihaz aynı anda
+// gönderse de Google'da çift kayıt oluşmaz.
+const SIG_KEY = 'vazifedar:gsig'; // Google kimliği → son gönderilen gövde (bu cihazda)
+function loadSigs() { try { return JSON.parse(localStorage.getItem(SIG_KEY) || '{}') || {}; } catch { return {}; } }
+function saveSigs(m) { try { localStorage.setItem(SIG_KEY, JSON.stringify(m)); } catch { /* yok say */ } }
+export function clearSigs() { try { localStorage.removeItem(SIG_KEY); } catch { /* yok say */ } }
+
+// Google etkinlik kimliği yalnız 0-9 ve a-v harflerinden oluşabilir: kimliği onaltılı yaz
+const hex = (s) => [...new TextEncoder().encode(String(s))].map((b) => b.toString(16).padStart(2, '0')).join('');
+const taskGid = (t) => `odev${hex(t.id)}`;
+const sessionGid = (c, s) => `ders${hex(`${c.id}|${s.id}`)}`;
+
+// Hangi görevler Google Takvim'e gider: odev (yalnız ödev teslimleri) | hepsi (son tarihli görevler de) | kapali
+export function tasksToGoogleMode() { return state.settings.tasksToGoogle || 'odev'; }
+const taskWanted = (t, mode) => mode !== 'kapali' && !!t.due && (!!t.courseId || mode === 'hepsi');
+export function coursesInGoogle() { return state.courses.some((c) => c.sessions.some((s) => s.googleId)); }
+
 function utcStamp(d) {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 }
@@ -398,58 +422,172 @@ function localStamp(dateKey, hm) {
   return `${dateKey.replace(/-/g, '')}T${hm.replace(':', '')}00`;
 }
 
+function taskBody(t) {
+  const hw = !!t.courseId;
+  const c = hw ? state.courses.find((x) => x.id === t.courseId) : null;
+  const name = hw ? [c?.code || c?.name, t.title].filter(Boolean).join(' ') : t.title;
+  const body = {
+    summary: `${t.done ? '✓ ' : ''}${hw ? 'Teslim' : 'Son gün'}: ${name}`,
+    description: [t.notes, hw ? 'Vazifedar\'daki ödev teslimi. Değiştirmek ya da silmek için Vazifedar\'ı kullan.' : 'Vazifedar\'daki görevin son günü. Değiştirmek ya da silmek için Vazifedar\'ı kullan.'].filter(Boolean).join('\n\n'),
+    status: 'confirmed',
+    transparency: 'transparent', // takvimi "meşgul" göstermesin
+    colorId: hw ? '6' : '8',
+    extendedProperties: { private: { vazifedarKind: 'gorev', vazifedarTask: t.id } },
+  };
+  if (hw) {
+    // Teslim saatinde biten kısa bir etkinlik; 1 gün ve 3 saat önce hatırlatır
+    const due = dueDate(t);
+    body.start = { dateTime: `${toLocalISO(addMinutes(due, -15))}:00`, timeZone: TZ };
+    body.end = { dateTime: `${toLocalISO(due)}:00`, timeZone: TZ };
+    body.reminders = { useDefault: false, overrides: t.done ? [] : [{ method: 'popup', minutes: 1440 }, { method: 'popup', minutes: 180 }] };
+  } else {
+    // Son gün, tüm gün; bir gün önce sabah 9'da hatırlatır
+    body.start = { date: t.due };
+    body.end = { date: toDateKey(addDays(parseLocal(t.due), 1)) };
+    body.reminders = { useDefault: false, overrides: t.done ? [] : [{ method: 'popup', minutes: 900 }] };
+  }
+  return body;
+}
+
+function courseBody(c, s) {
+  const { start, end } = state.term;
+  if (!start || !end || !s.start || !s.end || !s.day) return null;
+  let first = parseLocal(start);
+  while (isoWeekday(first) !== Number(s.day)) first = addDays(first, 1);
+  const firstKey = toDateKey(first);
+  if (firstKey > end) return null;
+  const until = utcStamp(new Date(parseLocal(`${end}T23:59`).getTime() + 59000));
+  const ex = [];
+  for (let d = first; toDateKey(d) <= end; d = addDays(d, 7)) {
+    const k = toDateKey(d);
+    if (breakOn(d) || !inTerm(d) || c.skips.includes(`${s.id}|${k}`)) ex.push(localStamp(k, s.start));
+  }
+  const recurrence = [`RRULE:FREQ=WEEKLY;UNTIL=${until}`];
+  if (ex.length) recurrence.push(`EXDATE;TZID=${TZ}:${ex.join(',')}`);
+  return {
+    summary: [c.code, c.name].filter(Boolean).join(' '),
+    location: s.location || '',
+    description: [s.type, c.instructor].filter(Boolean).join(' – '),
+    start: { dateTime: `${firstKey}T${s.start}:00`, timeZone: TZ },
+    end: { dateTime: `${firstKey}T${s.end}:00`, timeZone: TZ },
+    recurrence,
+    status: 'confirmed',
+    colorId: '9',
+    reminders: { useDefault: false, overrides: [] },
+    extendedProperties: { private: { vazifedarKind: 'ders', vazifedarCourse: c.id, vazifedarSession: s.id } },
+  };
+}
+
+// Vazifedar'ın bu türden koyduğu etkinlikler: kimlik → özel alanlar
+async function listKind(kind) {
+  const out = new Map();
+  let pageToken;
+  do {
+    const d = await api('GET', `${calPath()}/events`, {
+      query: { privateExtendedProperty: `vazifedarKind=${kind}`, maxResults: 2500, fields: 'items(id,extendedProperties),nextPageToken', pageToken },
+    });
+    for (const g of d?.items || []) out.set(g.id, g.extendedProperties?.private || {});
+    pageToken = d?.nextPageToken;
+  } while (pageToken);
+  return out;
+}
+
+// Sabit kimlikle yaz: varsa güncelle, yoksa oluştur (silinmiş bir kopya da geri gelir)
+async function putFixed(gid, body) {
+  const path = `${calPath()}/events/${gid}`;
+  try { return await api('PATCH', path, { body }); } catch (e) { if (![404, 410].includes(e.status)) throw e; }
+  try { return await api('POST', `${calPath()}/events`, { body: { ...body, id: gid } }); } catch (e) { if (e.status !== 409) throw e; }
+  return api('PUT', path, { body });
+}
+async function delFixed(gid) {
+  try { await api('DELETE', `${calPath()}/events/${encodeURIComponent(gid)}`); } catch (e) { if (![404, 410].includes(e.status)) throw e; }
+}
+
+// Bir eşitleme turunda ödevleri/görevleri ve (aktarılmışsa) ders programını Google'a uydurur.
+// cloudOk: bu turda Drive eşitlemesi başarılıysa bu cihazın listesi günceldir; o zaman başka bir
+// cihazın gönderip sonradan silinen kayıtları da Google'dan kaldırılabilir.
+async function pushSchool({ cloudOk = false, forceCourses = false } = {}) {
+  const sigs = loadSigs();
+  let failed = 0, coursesChanged = false, sessions = 0;
+  const attempt = async (fn) => {
+    try { await fn(); return true; } catch (e) {
+      if (e.status === 401 || e.status === 403) throw e;
+      console.warn('Google Takvim', e); failed++; return false;
+    }
+  };
+
+  // Görevler ve ödevler
+  const mode = tasksToGoogleMode();
+  const gTasks = await listKind('gorev');
+  const want = new Set();
+  for (const t of state.tasks) {
+    if (!taskWanted(t, mode)) continue;
+    const gid = taskGid(t);
+    want.add(gid);
+    const body = taskBody(t);
+    const sig = JSON.stringify(body);
+    if (gTasks.has(gid) && sigs[gid] === sig) continue;
+    await attempt(async () => { await putFixed(gid, body); sigs[gid] = sig; });
+  }
+  for (const [gid, p] of gTasks) {
+    if (want.has(gid)) continue;
+    const t = state.tasks.find((x) => x.id === p.vazifedarTask);
+    // Görev silinmiş ya da tarihi kalkmışsa kaldır. Yalnız bu cihazın ayarı yüzünden istenmiyorsa
+    // (ör. başka cihaz "hepsi"de) sadece bu cihazın gönderdiklerine dokun.
+    const gone = !t || !t.due;
+    if (!(sigs[gid] !== undefined || (cloudOk && gone))) continue;
+    await attempt(async () => { await delFixed(gid); delete sigs[gid]; });
+  }
+  for (const gid of Object.keys(sigs)) if (gid.startsWith('odev') && !want.has(gid) && !gTasks.has(gid)) delete sigs[gid];
+
+  // Ders programı (bir kez "Google Takvim'e aktar" denmişse kendiliğinden güncel tutulur)
+  if (forceCourses || coursesInGoogle()) {
+    const gCourses = await listKind('ders');
+    const wantC = new Set();
+    for (const c of state.courses) {
+      for (const s of c.sessions) {
+        const body = courseBody(c, s);
+        if (!body) continue;
+        const gid = sessionGid(c, s);
+        // Eski sürümün rastgele kimlikle aktardığı kopyayı kaldır
+        if (s.googleId && s.googleId !== gid && !(await attempt(() => delFixed(s.googleId)))) continue;
+        wantC.add(gid);
+        sessions++;
+        const sig = JSON.stringify(body);
+        const ok = (gCourses.has(gid) && sigs[gid] === sig) || await attempt(async () => { await putFixed(gid, body); sigs[gid] = sig; });
+        if (ok && s.googleId !== gid) { s.googleId = gid; coursesChanged = true; }
+      }
+    }
+    for (const gid of gCourses.keys()) {
+      if (wantC.has(gid) || !(sigs[gid] !== undefined || cloudOk)) continue;
+      await attempt(async () => { await delFixed(gid); delete sigs[gid]; });
+    }
+    for (const gid of Object.keys(sigs)) if (gid.startsWith('ders') && !wantC.has(gid) && !gCourses.has(gid)) delete sigs[gid];
+  }
+  saveSigs(sigs);
+  return { failed, coursesChanged, sessions };
+}
+
 export async function exportCourses() {
   const { start, end } = state.term;
   if (!start || !end) throw new Error('Önce dönem başlangıç ve bitiş tarihlerini gir.');
   if (!hasToken()) await connect();
-  await removeCoursesFromGoogle({ silent: true });
-  let count = 0;
-  for (const c of state.courses) {
-    for (const s of c.sessions) {
-      let first = parseLocal(start);
-      while (isoWeekday(first) !== Number(s.day)) first = addDays(first, 1);
-      const firstKey = toDateKey(first);
-      if (firstKey > end) continue;
-      const until = utcStamp(new Date(parseLocal(`${end}T23:59`).getTime() + 59000));
-      const ex = [];
-      for (let d = first; toDateKey(d) <= end; d = addDays(d, 7)) {
-        const k = toDateKey(d);
-        if (breakOn(d) || !inTerm(d) || c.skips.includes(`${s.id}|${k}`)) ex.push(localStamp(k, s.start));
-      }
-      const recurrence = [`RRULE:FREQ=WEEKLY;UNTIL=${until}`];
-      if (ex.length) recurrence.push(`EXDATE;TZID=${TZ}:${ex.join(',')}`);
-      const body = {
-        summary: [c.code, c.name].filter(Boolean).join(' '),
-        location: s.location || '',
-        description: [s.type, c.instructor].filter(Boolean).join(' – '),
-        start: { dateTime: `${firstKey}T${s.start}:00`, timeZone: TZ },
-        end: { dateTime: `${firstKey}T${s.end}:00`, timeZone: TZ },
-        recurrence,
-        colorId: '9',
-        reminders: { useDefault: false, overrides: [] },
-        extendedProperties: { private: { vazifedarCourse: c.id, vazifedarSession: s.id } },
-      };
-      const res = await api('POST', `${calPath()}/events`, { body });
-      s.googleId = res.id;
-      count++;
-    }
-  }
+  const r = await pushSchool({ forceCourses: true });
   commit('courses');
-  return count;
+  if (r.failed) throw new Error(`${r.failed} kayıt Google Takvim'e gönderilemedi. Biraz sonra tekrar dene.`);
+  return r.sessions;
 }
 
 export async function removeCoursesFromGoogle({ silent = false } = {}) {
   if (!hasToken()) await connect();
-  let n = 0;
-  for (const c of state.courses) {
-    for (const s of c.sessions) {
-      if (!s.googleId) continue;
-      try { await api('DELETE', `${calPath()}/events/${encodeURIComponent(s.googleId)}`); n++; } catch (e) { if (![404, 410].includes(e.status)) throw e; }
-      s.googleId = null;
-    }
-  }
+  const sigs = loadSigs();
+  const ids = new Set((await listKind('ders')).keys());
+  for (const c of state.courses) for (const s of c.sessions) if (s.googleId) ids.add(s.googleId);
+  for (const gid of ids) { await delFixed(gid); delete sigs[gid]; }
+  for (const c of state.courses) for (const s of c.sessions) s.googleId = null;
+  saveSigs(sigs);
   if (!silent) commit('courses');
-  return n;
+  return ids.size;
 }
 
 // Bağlanmadan önce yerelde oluşturulmuş planları da Google'a gönder
