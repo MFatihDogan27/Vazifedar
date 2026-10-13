@@ -295,7 +295,7 @@ function onReturn() {
 }
 window.addEventListener('focus', onReturn);
 // Telefon ⇄ geniş ekran (ya da telefon yan çevrilince): haftalık görünüm sığdığı düzende yeniden çizilsin
-window.matchMedia?.(NARROW_WEEK).addEventListener?.('change', () => { if (ui.view === 'calendar' && ui.mode === 'week') renderMain(); });
+window.matchMedia?.(NARROW_WEEK).addEventListener?.('change', () => { if ((ui.view === 'calendar' && ui.mode === 'week') || ui.view === 'courses') renderMain(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onReturn(); });
 window.addEventListener('pageshow', (e) => { if (e.persisted) onReturn(); });
 

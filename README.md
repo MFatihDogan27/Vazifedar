@@ -43,7 +43,7 @@ Yüklenince kendi simgesiyle ayrı pencerede açılır ve internet yokken de ça
 2. **+ Ders ekle** ile her dersi bir kez gir: kod, ad, hoca, renk ve oturumlar (gün, saat, derslik, Teori / Lab / PS). Bir dersin birden çok oturumu olabilir.
 3. İstersen **devamsızlık hakkını** da yaz. "Dönemin %30'u" düğmesi bir öneri hesaplar; asıl oranı kendi yönetmeliğinden kontrol et.
 
-Dersler artık dönem boyunca her hafta takvimde ve Bugün ekranının kadranında görünür.
+Dersler artık dönem boyunca her hafta takvimde ve Bugün ekranının kadranında görünür. Dersler sayfasındaki **Haftalık çizelge** telefonda takvimdeki gibi mercek düzenindedir: üstteki halkalar o günün derslerini (ortada ders sayısı) gösterir, altta günler yana kayar ve her derste kod, ad, saat ve derslik okunur.
 
 ### 3. İlk planını yaz
 

@@ -5,6 +5,9 @@ import { GUNLER, GUNLER_KISA, hmToMin, parseLocal, fmtDateShort, relativeDays, t
 import { openCourseForm, openTaskForm, absenceMeter } from './forms.js';
 import { tickButton, completeTask, repeatTag } from './tasks.js';
 import * as G from './google.js';
+import { isNarrowWeek } from './calendar.js';
+import { ring } from './journal.js';
+import { isoWeekday } from './dates.js';
 
 const PX = 46; // saat başına piksel
 
@@ -17,6 +20,7 @@ function timetable() {
   const minH = Math.min(8, ...sessions.map(({ s }) => Math.floor(hmToMin(s.start) / 60)));
   const maxH = Math.max(18, ...sessions.map(({ s }) => Math.ceil(hmToMin(s.end) / 60)));
   const hours = []; for (let x = minH; x < maxH; x++) hours.push(x);
+  if (isNarrowWeek()) return narrowTimetable({ sessions, days, minH, hours });
   return h('div', { class: 'tt', style: { '--days': days.length } },
     h('div', { class: 'tt-head' }, h('div'), days.map((d) => h('div', {}, GUNLER_KISA[d - 1]))),
     h('div', { class: 'tt-body' },
@@ -31,6 +35,87 @@ function timetable() {
             onclick: () => openCourseForm(c.id), title: `${c.name}\n${s.start}–${s.end}${s.location ? `\n${s.location}` : ''}`,
           }, h('strong', {}, c.code || c.name), h('span', {}, `${s.start}–${s.end}`), s.location ? h('span', {}, s.location) : null, s.type && s.type !== 'Teori' ? h('span', { class: 'tt-type' }, s.type) : null);
         })))));
+}
+
+// ---------------------------------------------------------------------------
+// Telefonda haftalık çizelge: takvimdeki "mercek" gibi. Üstte günlerin halkaları (o günün dersleri
+// kadranda kendi renginde), altında yana kayan geniş gün sütunları; dersin kodu, adı, saati, dersliği
+// okunur. Şeritteki mercek o an görünen günlerin üstünde; bir güne dokununca oraya gider.
+// ---------------------------------------------------------------------------
+const ttPos = { left: null }; // sayfa yeniden çizilince (ör. bir ders eklenince) yer kaybolmasın
+const sumHours = (list) => list.reduce((a, { s }) => a + (hmToMin(s.end) - hmToMin(s.start)), 0) / 60;
+const fmtHours = (x) => `${String(Math.round(x * 10) / 10).replace('.', ',')} sa`;
+
+function narrowTimetable({ sessions, days, minH, hours }) {
+  const today = isoWeekday(new Date());
+  const ofDay = (d) => sessions.filter(({ s }) => Number(s.day) === d).sort((a, b) => hmToMin(a.s.start) - hmToMin(b.s.start));
+  const lens = h('span', { class: 'wk-lens', 'aria-hidden': 'true' });
+  const scroller = h('div', { class: 'tt-scroll' });
+  const colW = () => scroller.querySelector('.tt-col')?.getBoundingClientRect().width || 1;
+  const goDay = (i) => scroller.scrollTo({ left: i * colW(), behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+
+  const strip = h('div', { class: 'tt-strip', role: 'tablist', 'aria-label': 'Günler', style: { '--days': days.length } }, lens,
+    days.map((d, i) => {
+      const list = ofDay(d);
+      const segs = list.map(({ c, s }) => ({ a: hmToMin(s.start), b: hmToMin(s.end), c: c.color || '#2B47B9', k: 'course', t: c.code || c.name }));
+      return h('button', {
+        type: 'button', role: 'tab', class: `wk-sd ${d === today ? 'today' : ''} ${d >= 6 ? 'weekend' : ''}`,
+        'aria-label': `${GUNLER[d - 1]}: ${list.length ? `${list.length} ders, ${fmtHours(sumHours(list))}` : 'ders yok'}`, onclick: () => goDay(i),
+      }, h('span', { class: 'wk-dn' }, GUNLER_KISA[d - 1]),
+      h('span', { class: 'wk-dd' }, ring(segs, { thin: true }), h('b', {}, String(list.length))));
+    }));
+
+  const head = h('div', { class: 'tt-mhead' }, h('div', { class: 'tt-corner' }),
+    days.map((d) => {
+      const list = ofDay(d);
+      return h('div', { class: `tt-ch ${d === today ? 'today' : ''}` },
+        h('div', { class: 'wk-ch-t' }, h('b', {}, GUNLER[d - 1]), d === today ? h('i', { class: 'wk-ch-now' }, 'bugün') : null),
+        h('span', { class: 'muted small' }, list.length ? `${list.length} ders · ${fmtHours(sumHours(list))}` : 'Ders yok'));
+    }));
+
+  const body = h('div', { class: 'tt-body' },
+    h('div', { class: 'tt-hours' }, hours.map((x) => h('div', { style: { height: `${PX}px` } }, `${String(x).padStart(2, '0')}:00`))),
+    days.map((d) => h('div', { class: `tt-col ${d === today ? 'today' : ''}`, style: { height: `${hours.length * PX}px`, backgroundSize: `100% ${PX}px` } },
+      ofDay(d).map(({ c, s }) => {
+        const top = ((hmToMin(s.start) - minH * 60) / 60) * PX;
+        const hgt = ((hmToMin(s.end) - hmToMin(s.start)) / 60) * PX - 2;
+        const clash = sessions.some((o) => o.s !== s && Number(o.s.day) === d && hmToMin(o.s.start) < hmToMin(s.end) && hmToMin(s.start) < hmToMin(o.s.end));
+        const roomy = hgt >= 70;
+        return h('button', {
+          class: `tt-item ${clash ? 'clash' : ''} ${roomy ? '' : 'tight'}`, style: { top: `${top}px`, height: `${hgt}px`, '--c': c.color },
+          onclick: () => openCourseForm(c.id), title: `${c.name}\n${s.start}–${s.end}${s.location ? `\n${s.location}` : ''}`,
+        },
+        h('strong', {}, c.code || c.name),
+        c.code && c.name && roomy ? h('span', { class: 'tt-name' }, c.name) : null,
+        h('span', {}, `${s.start}–${s.end}`),
+        s.location || (s.type && s.type !== 'Teori') ? h('span', {}, [s.location, s.type && s.type !== 'Teori' ? s.type : ''].filter(Boolean).join(' · ')) : null);
+      }))));
+
+  scroller.append(h('div', { class: 'tt-grid' }, head, body));
+
+  let raf = 0;
+  const syncLens = () => {
+    raf = 0;
+    if (!scroller.isConnected) return;
+    const w = colW(), n = days.length;
+    const first = scroller.scrollLeft / w;
+    const vis = Math.min(n, (scroller.clientWidth - (scroller.querySelector('.tt-hours')?.offsetWidth || 0)) / w);
+    lens.style.left = `${(first / n) * 100}%`;
+    lens.style.width = `${(vis / n) * 100}%`;
+    strip.querySelectorAll('.wk-sd').forEach((b, i) => {
+      const on = i + 1 > first + 0.35 && i < first + vis - 0.35;
+      b.classList.toggle('in', on); b.setAttribute('aria-selected', String(on));
+    });
+    ttPos.left = scroller.scrollLeft;
+  };
+  scroller.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(syncLens); }, { passive: true });
+  requestAnimationFrame(() => {
+    if (!scroller.isConnected) return; // sayfa art arda çizildiyse eskisi yeri bozmasın
+    const ti = days.indexOf(today);
+    scroller.scrollLeft = ttPos.left !== null ? ttPos.left : Math.max(0, ti) * colW();
+    syncLens();
+  });
+  return h('div', { class: 'tt narrow', style: { '--days': days.length } }, strip, scroller);
 }
 
 export function renderCourses(root) {
