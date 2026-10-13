@@ -41,11 +41,7 @@ git reset -q origin/master
 for /f %%b in ('git branch --show-current') do set DAL=%%b
 git add -A
 git diff --cached --quiet
-if not errorlevel 1 (
-  echo Gonderilecek degisiklik yok, her sey zaten GitHub'da.
-  pause
-  exit /b 0
-)
+if not errorlevel 1 goto :yolla
 echo.
 echo Gonderilecek degisiklikler:
 git status --short
@@ -55,11 +51,17 @@ set /p MESAJ=Ne degisti? (bos birakirsan tarih yazilir):
 if not defined MESAJ set "MESAJ=Guncelleme %date% %time:~0,5%"
 set "MESAJ=%MESAJ:"=%"
 git commit -q -m "%MESAJ%"
+
+:yolla
+rem GitHub girisi tarayici penceresiyle yapilsin (Git Credential Manager)
+git credential-manager --version >nul 2>nul && git config credential.helper manager
 git pull -q --rebase origin %DAL% 2>nul
 git push -u origin %DAL%
 if errorlevel 1 (
   echo.
-  echo Gonderim basarisiz oldu. Yukaridaki hata mesajina bak.
+  echo Gonderim basarisiz oldu. Yukaridaki hata mesajini Claude'a yapistir.
+  echo Kullanici adi / sifre sorduysa: GitHub artik sifre kabul etmiyor,
+  echo Git for Windows'u https://git-scm.com/download/win adresinden yeniden kur.
   pause
   exit /b 1
 )
