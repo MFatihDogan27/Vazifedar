@@ -5,7 +5,7 @@
 - **Ücretsiz, kurulumsuz.** Tarayıcıda açılır, istersen telefona ve bilgisayara uygulama olarak yüklenir, internetsiz de çalışır.
 - **Verin sende kalır.** Arkada bir sunucu yok. Yazdığın her şey kendi cihazında durur; eşitlemeyi açarsan bir kopyası da **kendi** Google hesabına gider. Uygulamayı paylaşan kişi dahil kimse senin verini göremez.
 
-**Adres:** https://mfatihdogan27.github.io/vazifedar/
+**Adres:** https://mfatihdogan27.github.io/Vazifedar/
 
 ---
 
