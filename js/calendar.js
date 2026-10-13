@@ -13,6 +13,12 @@ import { prayerEnabled, prayerSettings, prayersInRange } from './prayer.js';
 import { ring, dayData } from './journal.js';
 import { hijri, holyDay, moonPhaseOn, moonGlyph, HICRI_AYLAR } from './hicri.js';
 
+// Telefonda haftalık görünüm "mercek" düzenine geçer: üstte haftanın 7 gün halkası, altında yan yana
+// kayan geniş gün sütunları (ekranda ~2 gün). Şeritteki mercek o an görünen günlerin üstünde durur.
+export const NARROW_WEEK = '(max-width: 640px)';
+export const isNarrowWeek = () => !!window.matchMedia?.(NARROW_WEEK).matches;
+const narrowPos = { ws: '', left: null }; // haftada nerede kalındı (dakikalık yeniden çizimde kaybolmasın)
+
 const PX_PER_HOUR = 52;  // dolu saat
 const QUIET_PX = 20;     // haftanın hiçbir gününde kaydı olmayan saat (esnek eksen)
 const SLEEP_PX = 30;     // uyku aralığının tamamı tek ince şerit (esnek eksen)
@@ -240,10 +246,11 @@ export function renderWeek(root, anchor) {
 
   // Tüm gün satırı
   const allDayItems = items.filter((o) => o.allDay);
+  const adChips = (d) => allDayItems.filter((o) => o.start < addDays(d, 1) && o.end > d)
+    .map((o) => h('button', { class: `ad-chip ${o.kind} ${o.done ? 'done' : ''}`, style: { '--c': o.color }, title: o.kind === 'deadline' ? `Teslim: ${o.title} (${timeStr(o.due)})` : o.title, onclick: () => openOcc(o) }, chipText(o)));
+  const newAllDay = (d) => (e) => { if (e.target === e.currentTarget) openEventForm({ start: `${toDateKey(d)}T00:00`, end: `${toDateKey(d)}T23:59`, allDay: true }); };
   const adRow = h('div', { class: 'wk-allday' }, h('div', { class: 'wk-gutter small muted' }, 'tüm gün'),
-    days.map((d) => h('div', { class: 'wk-ad-cell', onclick: (e) => { if (e.target === e.currentTarget) openEventForm({ start: `${toDateKey(d)}T00:00`, end: `${toDateKey(d)}T23:59`, allDay: true }); } },
-      allDayItems.filter((o) => o.start < addDays(d, 1) && o.end > d)
-        .map((o) => h('button', { class: `ad-chip ${o.kind} ${o.done ? 'done' : ''}`, style: { '--c': o.color }, title: o.kind === 'deadline' ? `Teslim: ${o.title} (${timeStr(o.due)})` : o.title, onclick: () => openOcc(o) }, chipText(o))))));
+    days.map((d) => h('div', { class: 'wk-ad-cell', onclick: newAllDay(d) }, adChips(d))));
 
   // Saat cetveli: dolu saatler tam, sessiz saatler ince, uyku tek şerit
   const gutter = h('div', { class: 'wk-gutter hours', style: { height: `${ax.total}px` } });
@@ -345,14 +352,87 @@ export function renderWeek(root, anchor) {
   });
 
   const body = h('div', { class: 'wk-body' }, gutter, h('div', { class: 'wk-cols' }, lines, cols));
+  const scrollToNow = (scroller, extra = 0) => {
+    const target = sameDay(startOfWeek(today), ws) ? Math.max(sh, today.getHours() - 2) : Math.max(sh, 8);
+    scroller.scrollTop = ax.yOf(target * 60) - (elastic ? 24 : 0) + extra;
+  };
+
+  if (isNarrowWeek()) {
+    root.replaceChildren(summary, narrowWeek({ ws, days, today, elastic, body, adChips, newAllDay, scrollToNow }));
+    return;
+  }
   const scroller = h('div', { class: 'wk-scroll' }, body);
   root.replaceChildren(summary, h('div', { class: `week ${elastic ? 'elastic' : ''}` }, head, adRow, scroller));
 
   // Uygun saate kaydır
+  requestAnimationFrame(() => scrollToNow(scroller));
+}
+
+// ---------------------------------------------------------------------------
+// Telefonda hafta: "mercek"
+// Üstte 7 gün halkası (haftanın yükü bir bakışta), altında yan yana kayan geniş gün sütunları.
+// Sütun başlıkları (gün adı, tüm gün kayıtları, ödev teslimleri) ve saat cetveli kaydırırken yerinde
+// kalır. Şeritteki mercek o an ekranda olan günlerin üstüne kayar; bir halkaya dokununca o güne gider.
+// ---------------------------------------------------------------------------
+function narrowWeek({ ws, days, today, elastic, body, adChips, newAllDay, scrollToNow }) {
+  const wsKey = toDateKey(ws);
+  const lens = h('span', { class: 'wk-lens', 'aria-hidden': 'true' });
+  const scroller = h('div', { class: 'wk-scroll' });
+  const colW = () => scroller.querySelector('.wk-col')?.getBoundingClientRect().width || 1;
+  const goDay = (i, smooth = true) => scroller.scrollTo({ left: i * colW(), behavior: smooth && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
+
+  const strip = h('div', { class: 'wk-strip', role: 'tablist', 'aria-label': 'Haftanın günleri' }, lens,
+    days.map((d, i) => h('button', {
+      type: 'button', role: 'tab', class: `wk-sd ${sameDay(d, today) ? 'today' : ''} ${isoWeekday(d) >= 6 ? 'weekend' : ''} ${breakOn(d) ? 'holiday' : ''}`,
+      'data-date': toDateKey(d), 'aria-label': `${GUNLER[isoWeekday(d) - 1]} ${d.getDate()} ${AYLAR[d.getMonth()]}`,
+      onclick: () => goDay(i),
+    }, h('span', { class: 'wk-dn' }, GUNLER_KISA[isoWeekday(d) - 1]), dayHeadRing(d, today))));
+
+  const mhead = h('div', { class: 'wk-mhead' }, h('div', { class: 'wk-corner' }),
+    days.map((d) => {
+      const br = breakOn(d);
+      const holy = holyDay(d);
+      const moon = moonPhaseOn(d);
+      return h('div', { class: `wk-ch ${sameDay(d, today) ? 'today' : ''} ${isoWeekday(d) >= 6 ? 'weekend' : ''}`, 'data-date': toDateKey(d), onclick: newAllDay(d) },
+        h('div', { class: 'wk-ch-t' },
+          h('b', {}, GUNLER[isoWeekday(d) - 1]), h('span', {}, `${d.getDate()} ${AYLAR[d.getMonth()].slice(0, 3)}`),
+          sameDay(d, today) ? h('i', { class: 'wk-ch-now' }, 'bugün') : null, moon ? moonGlyph(moon, 12) : null),
+        br ? h('span', { class: 'wk-break', title: br.label }, br.label || 'Tatil') : null,
+        holy ? h('span', { class: `wk-holy ${holy.kind}` }, holy.name) : null,
+        adChips(d));
+    }));
+  scroller.append(h('div', { class: 'wk-mgrid' }, mhead, body));
+
+  // Mercek: görünen günlerin üstünde
+  let raf = 0;
+  const syncLens = () => {
+    raf = 0;
+    if (!scroller.isConnected) return; // bu çizim yerini yenisine bıraktı
+    const w = colW();
+    const first = scroller.scrollLeft / w;
+    const vis = Math.min(7, (scroller.clientWidth - (scroller.querySelector('.wk-gutter.hours')?.offsetWidth || 0)) / w);
+    lens.style.left = `${(first / 7) * 100}%`;
+    lens.style.width = `${(vis / 7) * 100}%`;
+    strip.querySelectorAll('.wk-sd').forEach((b, i) => {
+      const on = i + 1 > first + 0.35 && i < first + vis - 0.35;
+      b.classList.toggle('in', on);
+      b.setAttribute('aria-selected', String(on));
+    });
+    narrowPos.ws = wsKey; narrowPos.left = scroller.scrollLeft;
+  };
+  scroller.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(syncLens); }, { passive: true });
+
   requestAnimationFrame(() => {
-    const target = sameDay(startOfWeek(today), ws) ? Math.max(sh, today.getHours() - 2) : Math.max(sh, 8);
-    scroller.scrollTop = ax.yOf(target * 60) - (elastic ? 24 : 0);
+    // Açılışta görünüm art arda iki kez çizilebilir: ekrandan kalkmış çizim yeri bozmasın
+    if (!scroller.isConnected) return;
+    // Aynı haftada kalındıysa yerini koru; yoksa bu haftaysa bugüne, değilse pazartesiye
+    const ti = days.findIndex((d) => sameDay(d, today));
+    if (narrowPos.ws === wsKey && narrowPos.left !== null) scroller.scrollLeft = narrowPos.left;
+    else scroller.scrollLeft = Math.max(0, ti) * colW();
+    scrollToNow(scroller);
+    syncLens();
   });
+  return h('div', { class: `week narrow ${elastic ? 'elastic' : ''}` }, strip, scroller);
 }
 
 // ---- Sürükle-bırak ----

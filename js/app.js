@@ -2,7 +2,7 @@
 import { h, toast } from './ui.js';
 import { state, subscribe, dueDate, onSaveError, rollSeries } from './store.js';
 import { parseLocal, timeStr, AYLAR, toDateKey, startOfWeek, addDays } from './dates.js';
-import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor } from './calendar.js';
+import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor, NARROW_WEEK } from './calendar.js';
 import { renderTasks } from './tasks.js';
 import { renderCourses } from './courses.js';
 import { renderSettings } from './settings.js';
@@ -294,6 +294,8 @@ function onReturn() {
   if (Date.now() - lastAuto > 2 * 60000) { lastAuto = Date.now(); G.sync(); }
 }
 window.addEventListener('focus', onReturn);
+// Telefon ⇄ geniş ekran (ya da telefon yan çevrilince): haftalık görünüm sığdığı düzende yeniden çizilsin
+window.matchMedia?.(NARROW_WEEK).addEventListener?.('change', () => { if (ui.view === 'calendar' && ui.mode === 'week') renderMain(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onReturn(); });
 window.addEventListener('pageshow', (e) => { if (e.persisted) onReturn(); });
 
