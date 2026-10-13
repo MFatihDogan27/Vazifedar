@@ -5,7 +5,7 @@
 - **Ücretsiz, kurulumsuz.** Tarayıcıda açılır, istersen telefona ve bilgisayara uygulama olarak yüklenir, internetsiz de çalışır.
 - **Verin sende kalır.** Arkada bir sunucu yok. Yazdığın her şey kendi cihazında durur; eşitlemeyi açarsan bir kopyası da **kendi** Google hesabına gider. Uygulamayı paylaşan kişi dahil kimse senin verini göremez.
 
-**Adres:** https://mfatihdogan27.github.io/Vazifedar/
+**Adres:** https://mfatihdogan27.github.io/Vazifedar/ · **Kaynak kod:** https://github.com/MFatihDogan27/Vazifedar
 
 ---
 
@@ -279,9 +279,9 @@ Telefon bilgisayardaki `localhost`'a erişemediği için uygulama GitHub Pages't
 
 > ⚠️ **`yedekler` klasörünü, `vazifedar-yedek-*.json` dosyalarını ve `_yedek_…` klasörlerini asla yükleme.** Yedekler defter dahil tüm kişisel verini içerir ve depo herkese açıktır. Git kullanırsan `.gitignore` bunları dışarıda bırakır; tarayıcıdan sürükle-bırak yaparken dikkat et.
 
-1. github.com → **New repository** → ad: `vazifedar`, **Public** → *Create repository*.
+1. github.com → **New repository** → ad: `Vazifedar` (büyük V ile; adres büyük-küçük harfe duyarlıdır), **Public** → *Create repository*.
 2. **uploading an existing file** → şunları sürükle: `index.html`, `manifest.webmanifest`, `sw.js`, `icon.svg`, `.nojekyll`, `README.md` ve `css`, `js`, `icons` klasörleri → *Commit changes*.
-3. **Settings → Pages** → *Deploy from a branch* → `main`, `/ (root)` → *Save*. Bir iki dakika sonra adres hazır olur: `https://mfatihdogan27.github.io/vazifedar/`
+3. **Settings → Pages** → *Deploy from a branch* → `main`, `/ (root)` → *Save*. Bir iki dakika sonra adres hazır olur: `https://mfatihdogan27.github.io/Vazifedar/`
 
 **Güncellemek:** Değişen dosyaları aynı ekrandan yeniden yükle (üstüne yazar). Kullanan herkesin uygulaması en geç 10 dakika içinde "Yeni sürüm hazır" der. Sürüm numarası artırmak gerekmez. Yeni bir JS dosyası eklediysen `sw.js`'teki listeye de yaz.
 
@@ -293,7 +293,7 @@ Hatalı bir güncelleme herkesi etkiler. Büyük değişiklikleri önce `localho
 2. [Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com) ve [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)'yi etkinleştir.
 3. **Google Auth Platform** (OAuth izin ekranı): uygulama türü *External*. **Audience → Test users** kısmına kendi Gmail adresini ekle.
 4. **Clients** → *Create client* → tür **Web application**.
-5. **Authorized JavaScript origins**: `http://localhost:8080` ve `https://mfatihdogan27.github.io` (sonunda `/vazifedar` olmadan). Kendi deponu kullanıyorsan kendi `https://<kullanıcı-adın>.github.io` adresini yaz.
+5. **Authorized JavaScript origins**: `http://localhost:8080` ve `https://mfatihdogan27.github.io` (sonunda `/Vazifedar` olmadan). Kendi deponu kullanıyorsan kendi `https://<kullanıcı-adın>.github.io` adresini yaz.
 6. Oluşan istemci kimliğini Vazifedar → Ayarlar → Google Takvim kutusuna yapıştır → **Kaydet** → **Google ile bağlan**.
 
 ### Arkadaşlarını eklemek
