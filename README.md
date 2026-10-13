@@ -40,7 +40,8 @@ Yüklenince kendi simgesiyle ayrı pencerede açılır ve internet yokken de ça
 **Dersler** sekmesi (sayfanın adı **Ders programı**):
 
 1. **Dönem** kutusuna **Dönem başlangıcı** ve **Dönem sonu** tarihlerini yaz. Bayram ve ara tatil gibi günleri **Tatil ekle** ile ekle; o günlerde ders görünmez.
-2. **+ Ders ekle** ile her dersi bir kez gir: kod, ad, hoca, renk ve oturumlar (gün, saat, derslik, Teori / Lab / PS). Bir dersin birden çok oturumu olabilir.
+2. En kolayı **Programı yapıştır**: okulun öğrenci sistemindeki haftalık ders programı tablosunu (Saat, Pazartesi, Salı… sütunları) seçip kopyala, kutuya yapıştır. Dersler, günler, saatler ve derslikler çıkarılır; ardışık saatler tek oturum olur (10:30–11:20 + 11:30–12:20 → 10:30–12:20). Ne bulunduğu önizlemede görünür (yeni / güncellenecek / aynı); onaylayınca kurulur. TOBB ETÜ derslerinin adı ve konuları müfredattan gelir. Kodu zaten olan dersin yalnız saatleri güncellenir (devamsızlık ve iptal işaretleri yerinde kalır), programda olmayan derslere dokunulmaz. Dönem başında yeni programı yapıştırmak da böyle çalışır.
+   Elle girmek istersen **+ Ders ekle** ile her dersi bir kez gir: kod, ad, hoca, renk ve oturumlar (gün, saat, derslik, Teori / Lab / PS). Bir dersin birden çok oturumu olabilir.
 3. İstersen **devamsızlık hakkını** da yaz. "Dönemin %30'u" düğmesi bir öneri hesaplar; asıl oranı kendi yönetmeliğinden kontrol et.
 4. TOBB ETÜ'deysen ders kodunu yazman yeter: dersin adı ve işlenecek **konuları** okulun müfredatından kendiliğinden gelir (bkz. [Ders konuları](#ders-konuları)).
 
@@ -189,6 +190,7 @@ Hafta, Ay ve Ajanda görünümleri vardır (`H`, `A`, `J` tuşları ya da üstte
 ### Dersler ve devamsızlık
 
 - Bir derse gitmediğinde takvimde o derse dokun ve **Gitmedim** de. Gelecekteki bir ders için **Gitmeyeceğim** de. 09:30–11:20 gibi bir oturum 2 ders saati sayılır.
+- Birden çok saatlik bir derste yalnız bir saate gitmediysen ders penceresindeki **Gitmediğin saatler** düğmelerinden o saati seç (ör. **2. saat · 11:30–12:20**); yalnız o saat devamsızlık sayılır. Takvimde "1 SAAT YOK" damgası çıkar. Bütün saatler için **Hiç gitmedim**, işareti kaldırmak için **Gittim** de. (Devamsızlığı "ders (oturum)" olarak sayan derslerde saat seçimi çıkmaz.)
 - Kullanılan ve kalan hak Dersler sayfasında ve ders penceresinde görünür. Hakkın %75'ine gelince Bugün ekranında uyarı çıkar.
 - O hafta yapılmayacak bir ders için derse dokunup **Bu haftaki dersi iptal et** de.
 - **Dönem** sekmesi (Dönem haritası) dönemin tamamını tek ekranda gösterir: sınavlar, teslimler, tatiller ve haftalık yük grafiği (yoğun haftalar kırmızı).
@@ -348,6 +350,7 @@ js/notes.js           Unutma notları, yarının çantası
 js/journal.js         Defter: kadran arşivi, gün sayfası, günlük, pul albümü
 js/tasks.js           Görev panosu, öncelik menüsü, tekrar etiketi
 js/courses.js         Ders programı sayfası
+js/ttimport.js        Ders programını yapıştırarak kurma (haftalık program tablosunu ayrıştırır)
 js/topics.js          Ders konuları: müfredattan getirme, işaretleme, Konular paneli, konu düzenleyici
 mufredat/tobb-etu.json  TOBB ETÜ derslerinin haftalık konuları (ABYS'den çekilmiş)
 mufredat/guncelle.mjs   Müfredatı okulun sitesinden yeniden çeker (node mufredat/guncelle.mjs)

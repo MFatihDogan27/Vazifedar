@@ -5,6 +5,7 @@ import {
   courseSessionConflicts, upsertTask, deleteTask, ONCELIKLER, PALET, dueDate,
   createSeries, updateSeriesFrom, endSeries, seriesOf,
   absenceInfo, toggleAbsence, suggestAbsenceLimit, skipOccurrence, endSeriesBefore,
+  absentHours, setAbsentHours, hourSlots,
 } from './store.js';
 import {
   parseLocal, toLocalISO, toDateKey, addMinutes, addDays, timeStr, fmtRange, fmtDateLong, fmtDateShort,
@@ -559,20 +560,56 @@ export function absenceMeter(c, { compact = false } = {}) {
 }
 
 // Bir ders oturumuna tıklanınca: devamsızlık, iptal, ödevler, düzenle
+// Birden çok ders saatli oturumda (10:30–12:20) hangi saatlere gidilmediği tek tek seçilebilir.
 export function openCourseOccurrence(occ) {
   const c = state.courses.find((x) => x.id === occ.courseId);
   if (!c) return;
+  const ses = c.sessions.find((x) => x.id === occ.sessionId);
   const key = `${occ.sessionId}|${occ.dateKey}`;
-  const absent = c.absences.some((a) => a.s === occ.sessionId && a.d === occ.dateKey);
   const future = occ.start > new Date();
+  const slots = ses ? hourSlots(ses) : [];
+  const missed = () => (ses ? absentHours(c, ses, occ.dateKey) : []);
+  const setMissed = (list) => setAbsentHours(c.id, occ.sessionId, occ.dateKey, list);
+  const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const absToast = (before) => {
+    const a = absenceInfo(c);
+    const now = missed().length;
+    const msg = now > before.length
+      ? (a.limit ? (a.left > 0 ? `${courseLabel(c)}: devamsızlık ${a.used}/${a.limit} ${a.unit}, ${a.left} ${a.unit} hakkın kaldı` : `${courseLabel(c)}: devamsızlık sınırı ${a.left === 0 ? 'doldu' : 'aşıldı'} (${a.used}/${a.limit})`) : `${courseLabel(c)}: ${a.used} ${a.unit} devamsızlık`)
+      : now ? `${courseLabel(c)}: ${now} saat devamsızlık` : 'Devamsızlık işareti kaldırıldı';
+    toast(msg, { kind: now > before.length && a.level && a.level !== 'ok' ? 'warn' : '', ms: 5000, action: { label: 'Geri al', onClick: () => setMissed(before) } });
+  };
+
+  // Devamsızlık bölümü: not + sayaç + (çok saatli derste) saat seçici. Seçince yerinde yenilenir.
+  const absWrap = h('div', { class: 'occ-abs' });
+  const drawAbs = () => {
+    const ms = missed();
+    const full = ms.length && ms.length === slots.length;
+    const showPicker = slots.length > 1 && c.absenceUnit !== 'oturum';
+    absWrap.replaceChildren(...[
+      full ? h('p', { class: 'absent-note' }, ic('x', { size: 15 }), ' Bu derse gitmedin olarak işaretli.')
+        : ms.length ? h('p', { class: 'absent-note' }, ic('x', { size: 15 }), ` Bu dersin ${ms.length} saatine gitmedin (${ms.map((i) => `${hm(slots[i].a)}–${hm(slots[i].b)}`).join(', ')}).`) : null,
+      showPicker ? h('div', { class: 'abs-hours', role: 'group', 'aria-label': 'Gitmediğin ders saatleri' },
+        h('span', { class: 'abs-hours-label' }, future ? 'Gitmeyeceğin saatler' : 'Gitmediğin saatler'),
+        h('div', { class: 'abs-hours-row' }, slots.map((sl) => {
+          const on = ms.includes(sl.i);
+          return h('button', {
+            type: 'button', class: `abs-hour ${on ? 'on' : ''}`, 'aria-pressed': String(on),
+            onclick: () => { const before = missed(); setMissed(on ? before.filter((i) => i !== sl.i) : [...before, sl.i]); drawAbs(); syncBtn(); absToast(before); },
+          }, h('b', {}, `${sl.i + 1}. saat`), h('span', {}, `${hm(sl.a)}–${hm(sl.b)}`));
+        }))) : null,
+      absenceMeter(c),
+    ].filter(Boolean));
+  };
+  drawAbs();
+
   const tasks = state.tasks.filter((t) => t.courseId === c.id && !t.done).sort((a, b) => (a.due || '9').localeCompare(b.due || '9'));
   const body = h('div', { class: 'occ' },
     applyTexture(h('div', { class: 'occ-head', style: { '--c': c.color } }, h('strong', {}, occ.title),
       h('div', { class: 'muted' }, `${fmtDateLong(occ.start)} · ${timeStr(occ.start)}–${timeStr(occ.end)}`),
       h('div', { class: 'muted small' }, [occ.sub, occ.location, c.instructor].filter(Boolean).join(' · '))), textureKey(occ)),
-    absent ? h('p', { class: 'absent-note' }, ic('x', { size: 15 }), ' Bu derse gitmedin olarak işaretli.') : null,
     pinSection(occ),
-    absenceMeter(c),
+    absWrap,
     occurrenceTopics(c, occ.start),
     h('div', { class: 'occ-tasks' },
       h('div', { class: 'occ-tasks-head' }, h('strong', {}, 'Ödevler ve teslimler'),
@@ -580,24 +617,25 @@ export function openCourseOccurrence(occ) {
       tasks.length ? h('ul', {}, tasks.map((t) => h('li', {},
         h('button', { type: 'button', class: 'link-row', onclick: () => { m.close(); openTaskForm(t.id); } }, t.title,
           t.due ? h('span', { class: 'muted small' }, ` · ${fmtDateShort(dueDate(t))} ${t.dueTime || '23:59'} (${relativeDays(dueDate(t))})`) : null)))) : h('p', { class: 'muted small' }, 'Açık ödev yok.')));
+  const absLabel = () => (missed().length ? 'Gittim (işareti kaldır)' : slots.length > 1 ? (future ? 'Hiç gitmeyeceğim' : 'Hiç gitmedim') : (future ? 'Gitmeyeceğim' : 'Gitmedim'));
   const m = openModal({
     title: 'Ders', body, actions: [
       { label: 'Bu haftaki dersi iptal et', kind: 'ghost left', onClick: (_, close) => { c.skips.push(key); commit('courses'); close(); toast('Bu oturum takvimden kaldırıldı', { action: { label: 'Geri al', onClick: () => { c.skips = c.skips.filter((k) => k !== key); commit('courses'); } } }); } },
       { label: 'Dersi düzenle', onClick: (_, close) => { close(); openCourseForm(c.id); } },
       {
-        label: absent ? 'Gittim (işareti kaldır)' : (future ? 'Gitmeyeceğim' : 'Gitmedim'), kind: absent ? '' : 'primary',
+        label: absLabel(), kind: missed().length ? '' : 'primary',
         onClick: (_, close) => {
-          const added = toggleAbsence(c.id, occ.sessionId, occ.dateKey);
+          const before = missed();
+          setMissed(before.length ? [] : slots.map((x) => x.i));
           close();
-          const a = absenceInfo(c);
-          const msg = added
-            ? (a.limit ? (a.left > 0 ? `${courseLabel(c)}: devamsızlık ${a.used}/${a.limit} ${a.unit}, ${a.left} ${a.unit} hakkın kaldı` : `${courseLabel(c)}: devamsızlık sınırı ${a.left === 0 ? 'doldu' : 'aşıldı'} (${a.used}/${a.limit})`) : `${courseLabel(c)}: ${a.used} ${a.unit} devamsızlık`)
-            : 'Devamsızlık işareti kaldırıldı';
-          toast(msg, { kind: added && a.level && a.level !== 'ok' ? 'warn' : '', ms: 5000, action: { label: 'Geri al', onClick: () => toggleAbsence(c.id, occ.sessionId, occ.dateKey) } });
+          absToast(before);
         },
       },
     ],
   });
+  // Saat seçilince alttaki düğme de güncel kalsın
+  const absBtn = m.dialog.querySelector('.modal-actions .btn:last-child');
+  const syncBtn = () => { absBtn.textContent = absLabel(); absBtn.classList.toggle('primary', !missed().length); };
 }
 
 // ---------------------------------------------------------------------------
@@ -764,7 +802,7 @@ export function openScheduleTask(taskId) {
     info.replaceChildren(
       h('p', { class: 'muted' }, `${durationText(dur)} sürecek bir boşluk aranıyor (ayarlardaki ${state.settings.freeSlotStart}–${state.settings.freeSlotEnd} aralığında).`),
       h('div', { class: 'slot-big' }, h('strong', {}, fmtDateLong(slot.start)), h('span', {}, `${timeStr(slot.start)} – ${timeStr(slot.end)}`)),
-      late ? h('p', { class: 'warn-text' }, `Dikkat: bu zaman ${t.courseId ? 'teslim' : 'son'} tarihinden (${fmtDateShort(dueDate(t))}) sonra.`) : null);
+      late ? h('p', { class: 'warn-text' }, `Dikkat: bu zaman ${t.courseId ? 'teslim' : 'son'} tarihinden (${fmtDateShort(dueDate(t))}) sonra.`) : '');
   };
   render();
   openModal({

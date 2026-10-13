@@ -282,11 +282,13 @@ export function pinSection(o) {
       render(true);
     };
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(); } });
-    wrap.replaceChildren(
+    // replaceChildren null'ı "null" yazısı olarak basar; boşları ayıkla
+    wrap.replaceChildren(...[
       h('div', { class: 'pin-sec-head' }, h('strong', {}, ic('pin', { size: 15 }), ' Unutma'),
         h('span', { class: 'muted small' }, 'Önceki akşam yarının çantasına düşer')),
       items.length ? pinRows(items, { onChange: () => render() }) : null,
-      h('div', { class: 'pin-add' }, input, sel, h('button', { type: 'button', class: 'btn small', onclick: add }, 'Ekle')));
+      h('div', { class: 'pin-add' }, input, sel, h('button', { type: 'button', class: 'btn small', onclick: add }, 'Ekle')),
+    ].filter(Boolean));
     if (focus) setTimeout(() => input.focus(), 0);
   };
   render();

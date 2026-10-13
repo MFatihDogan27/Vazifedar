@@ -2,7 +2,7 @@
 // Ay sayfasında günler halka halka dizilir; bir güne tıklayınca o günün sayfası açılır:
 // kadranı, o gün olanlar, bitenler, o güne iğnelenen notlar ve defter yazısı.
 import { h, toast } from './ui.js';
-import { state, commit, occurrencesInRange, category } from './store.js';
+import { state, commit, occurrencesInRange, category, absenceState } from './store.js';
 import {
   startOfDay, addDays, toDateKey, parseLocal, startOfMonth, startOfWeek, sameDay, minToHm,
   GUNLER, GUNLER_KISA, AYLAR, isoWeekday,
@@ -38,7 +38,12 @@ export function dayData(dateKey) {
   const frozen = state.archive[dateKey];
   const d = frozen || snapshot(parseLocal(dateKey));
   const segs = d.segs.map((s) => (s.k === 'course'
-    ? { ...s, absent: !!state.courses.find((c) => c.id === s.cid)?.absences.some((x) => x.s === s.sid && x.d === dateKey) }
+    ? (() => {
+      const c = state.courses.find((x) => x.id === s.cid), ses = c?.sessions.find((x) => x.id === s.sid);
+      if (!ses) return { ...s, absent: !!c?.absences.some((x) => x.s === s.sid && x.d === dateKey) };
+      const { absent, absentPart } = absenceState(c, ses, dateKey);
+      return { ...s, absent, absentPart };
+    })()
     : s));
   return { ...d, segs, frozen: !!frozen };
 }
@@ -251,7 +256,7 @@ function dayPage(k, { now, rerender }) {
     data.allDay.map((s) => h('li', { style: { '--c': s.c } }, h('span', { class: 'dj-t' }, 'tüm gün'), h('span', {}, s.t))),
     [...data.segs].sort((a, b) => a.a - b.a).map((s) => h('li', { class: s.absent ? 'absent' : '', style: { '--c': s.c } },
       h('span', { class: 'dj-t' }, `${minToHm(s.a)}–${minToHm(Math.min(s.b, 1439))}`),
-      h('span', {}, s.t, s.sub && s.sub !== 'Teori' ? h('small', {}, ` ${s.sub}`) : null, s.absent ? h('small', {}, ' · gitmedin') : null))))
+      h('span', {}, s.t, s.sub && s.sub !== 'Teori' ? h('small', {}, ` ${s.sub}`) : null, s.absent ? h('small', {}, ' · gitmedin') : s.absentPart ? h('small', {}, ` · ${s.absentPart} saat gitmedin`) : null))))
     : h('p', { class: 'muted small' }, past ? 'Takvimde bir şey yokmuş.' : 'Takvimde bir şey yok.');
 
   // O gün bitenler: görevler ve işaretlenen notlar

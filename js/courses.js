@@ -9,6 +9,7 @@ import { isNarrowWeek } from './calendar.js';
 import { ring } from './journal.js';
 import { isoWeekday } from './dates.js';
 import { topicsPanel, autoFillTopics } from './topics.js';
+import { openTimetableImport } from './ttimport.js';
 
 const PX = 46; // saat başına piksel
 
@@ -148,7 +149,9 @@ export function renderCourses(root) {
     h('div', { class: 'break-add' }, bl, bs, be, h('button', { class: 'btn small', onclick: addBreak }, 'Tatil ekle')));
 
   const list = h('section', { class: 'panel' },
-    h('div', { class: 'panel-head' }, h('h3', {}, 'Dersler'), h('button', { class: 'btn primary small', onclick: () => openCourseForm() }, '+ Ders ekle')),
+    h('div', { class: 'panel-head' }, h('h3', {}, 'Dersler'), h('div', { class: 'row' },
+      h('button', { class: 'btn small', onclick: () => openTimetableImport() }, 'Programı yapıştır'),
+      h('button', { class: 'btn primary small', onclick: () => openCourseForm() }, '+ Ders ekle'))),
     state.courses.length ? h('ul', { class: 'course-list' }, state.courses.map((c) => h('li', {},
       h('button', { class: 'course-row', style: { '--c': c.color }, onclick: () => openCourseForm(c.id) },
         h('span', { class: 'sw' }),
@@ -157,7 +160,7 @@ export function renderCourses(root) {
         h('span', { class: 'cr-side' },
           absenceMeter(c, { compact: true }),
           (() => { const n = state.tasks.filter((t) => t.courseId === c.id && !t.done).length; return n ? h('span', { class: 'muted small' }, `${n} açık ödev`) : null; })(),
-          c.skips.length ? h('span', { class: 'muted small' }, `${c.skips.length} iptal`) : null))))) : h('div', { class: 'empty small' }, h('p', {}, 'Ders programın boş. Her ders için gün ve saatleri bir kez gir, takvimde her hafta görünsün.'), h('button', { class: 'btn primary', onclick: () => openCourseForm() }, 'İlk dersi ekle')));
+          c.skips.length ? h('span', { class: 'muted small' }, `${c.skips.length} iptal`) : null))))) : h('div', { class: 'empty small' }, h('p', {}, 'Ders programın boş. Okulun sistemindeki haftalık programı kopyalayıp yapıştır, ya da her dersi bir kez gir; takvimde her hafta görünsün.'), h('div', { class: 'row' }, h('button', { class: 'btn primary', onclick: () => openTimetableImport() }, 'Programı yapıştır'), h('button', { class: 'btn', onclick: () => openCourseForm() }, 'Elle ekle'))));
 
   // Google'a aktar
   const exported = state.courses.some((c) => c.sessions.some((s) => s.googleId));

@@ -287,7 +287,7 @@ export function occurrencesInRange(from, to, { includeCourses = true, includeDea
             kind: 'course', id: `${c.id}:${s.id}:${dk}`, courseId: c.id, sessionId: s.id, dateKey: dk,
             title: c.code ? `${c.code} ${c.name}` : c.name, start: st, end: en, allDay: false,
             color: c.color || '#2B47B9', icon: 'cap', location: s.location, sub: s.type, ref: c,
-            absent: c.absences.some((a) => a.s === s.id && a.d === dk),
+            ...absenceState(c, s, dk),
           });
         }
       }
@@ -485,6 +485,35 @@ export { toLocalISO };
 export function sessionHours(session) {
   if (!session?.start || !session?.end) return 1;
   return Math.max(1, Math.round((hmToMin(session.end) - hmToMin(session.start) + 10) / 60));
+}
+// Bir oturumun ders saatleri: 10:30–12:20 → [10:30–11:20, 11:30–12:20] (dakika)
+export function hourSlots(session) {
+  const a0 = hmToMin(session.start), end = hmToMin(session.end);
+  return Array.from({ length: sessionHours(session) }, (_, i) => ({ i, a: a0 + i * 60, b: Math.min(a0 + i * 60 + 50, end) }));
+}
+// Devamsızlık kaydı: { s: oturum, d: gün, h: saat sayısı, p?: gidilmeyen saatlerin sırası (0'dan) }.
+// p yoksa oturumun tamamına gidilmemiştir (eski kayıtlar da böyle).
+export function absentHours(c, session, dateKey) {
+  const r = c.absences.find((a) => a.s === session.id && a.d === dateKey);
+  if (!r) return [];
+  const n = sessionHours(session);
+  return r.p ? r.p.filter((i) => i < n) : Array.from({ length: n }, (_, i) => i);
+}
+// Takvimdeki kayıt için: tamamına gidilmediyse absent, bir kısmına gidilmediyse absentPart (saat sayısı)
+export function absenceState(c, session, dateKey) {
+  const n = sessionHours(session), m = absentHours(c, session, dateKey).length;
+  return { absent: m > 0 && m >= n, absentPart: m > 0 && m < n ? m : 0, hours: n };
+}
+// Hangi saatlere gidilmediğini yaz (boş liste = işareti kaldır)
+export function setAbsentHours(courseId, sessionId, dateKey, hours) {
+  const c = state.courses.find((x) => x.id === courseId);
+  const s = c?.sessions.find((x) => x.id === sessionId);
+  if (!s) return;
+  const n = sessionHours(s);
+  const list = [...new Set(hours)].filter((i) => i >= 0 && i < n).sort((a, b) => a - b);
+  c.absences = c.absences.filter((a) => !(a.s === sessionId && a.d === dateKey));
+  if (list.length) c.absences.push(list.length === n ? { s: sessionId, d: dateKey, h: n } : { s: sessionId, d: dateKey, h: list.length, p: list });
+  commit('courses');
 }
 export function absenceUsed(c) {
   return c.absenceUnit === 'oturum' ? c.absences.length : c.absences.reduce((a, x) => a + (x.h || 1), 0);

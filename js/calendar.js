@@ -181,6 +181,7 @@ function openGapPicker(gap) {
 function pastStamp(o) {
   if (o.kind === 'course') {
     return o.absent ? h('span', { class: 'ev-stamp absent', 'aria-hidden': 'true' }, 'GİTMEDİM')
+      : o.absentPart ? h('span', { class: 'ev-stamp absent', 'aria-hidden': 'true' }, `${o.absentPart} SAAT YOK`)
       : h('span', { class: 'ev-stamp seal', title: 'Ders işlendi' }, ic('tick', { size: 11 }));
   }
   const rot = ((o.start.getDate() * 7 + o.start.getHours()) % 13) - 6;
@@ -323,11 +324,11 @@ export function renderWeek(root, anchor) {
       const el = h('button', {
         class: `ev ${o.kind} ${isClash ? 'clash' : ''} ${short ? 'short' : ''} ${past ? 'past' : ''} ${o.absent ? 'absent' : ''}`,
         style: { top: `${top}px`, height: `${height}px`, left: `calc(${g.col * w}% + 2px)`, width: `calc(${g.col === g.cols - 1 ? w : Math.min(100 - g.col * w, w * 1.7)}% - 4px)`, zIndex: String(g.col + 1), '--c': o.color, '--tilt': isClash ? (g.col % 2 ? '1.4deg' : '-1.1deg') : null },
-        title: `${o.title}\n${timeStr(o.start)}–${timeStr(o.end)}${o.location ? `\n${o.location}` : ''}${o.recurring ? '\n↻ Tekrarlayan plan' : ''}${o.absent ? '\n✕ Gitmedin' : ''}${isClash ? '\n⚠ Çakışma var' : ''}`,
+        title: `${o.title}\n${timeStr(o.start)}–${timeStr(o.end)}${o.location ? `\n${o.location}` : ''}${o.recurring ? '\n↻ Tekrarlayan plan' : ''}${o.absent ? '\n✕ Gitmedin' : o.absentPart ? `\n✕ ${o.absentPart} saatine gitmedin` : ''}${isClash ? '\n⚠ Çakışma var' : ''}`,
         onclick: (e) => { e.stopPropagation(); if (el._dragged) { el._dragged = false; return; } openOcc(o); },
       },
       h('span', { class: 'ev-title' }, isClash ? ic('alert', { size: 12, cls: 'ic-warn', label: 'çakışma' }) : null, o.absent ? ic('x', { size: 12, label: 'gitmedin' }) : null, openCount(o) ? ic('pin', { size: 12, cls: 'ic-pin', label: 'unutma notu var' }) : null, o.kind === 'event' ? ic(o.icon, { size: 13 }) : null, ` ${o.title}`, o.recurring ? ic('repeat', { size: 12, cls: 'ic-rep', label: 'tekrarlayan' }) : null),
-      short ? null : h('span', { class: 'ev-meta' }, `${timeStr(o.start)}–${timeStr(o.end)}`, o.location ? ` · ${o.location}` : '', o.sub && o.sub !== 'Teori' ? ` · ${o.sub}` : '', o.absent ? ' · gitmedin' : ''),
+      short ? null : h('span', { class: 'ev-meta' }, `${timeStr(o.start)}–${timeStr(o.end)}`, o.location ? ` · ${o.location}` : '', o.sub && o.sub !== 'Teori' ? ` · ${o.sub}` : '', o.absent ? ' · gitmedin' : o.absentPart ? ` · ${o.absentPart} saat gitmedin` : ''),
       o.google ? h('span', { class: 'ev-g', title: 'Google Takvim ile eşitli' }, 'G') : null,
       past && height >= 30 ? pastStamp(o) : null);
       if (height >= 26) applyTexture(el, textureKey(o));
@@ -641,7 +642,7 @@ export function renderAgenda(root, anchor) {
         h('button', { class: `ag-item ${o.kind} ${clash.has(o.id) ? 'clash' : ''} ${o.done ? 'done' : ''} ${o.absent ? 'absent' : ''}`, style: { '--c': o.color }, onclick: () => openOcc(o) },
           h('span', { class: 'ag-time' }, o.kind === 'deadline' ? `teslim ${timeStr(o.due)}` : o.allDay ? 'tüm gün' : `${timeStr(o.start)}–${timeStr(o.end)}`),
           h('span', { class: 'ag-title' }, ic(o.icon, { size: 15, cls: 'ag-ic' }), ` ${o.title}`, o.recurring ? ic('repeat', { size: 13, cls: 'ic-rep', label: 'tekrarlayan' }) : null),
-          h('span', { class: 'muted small' }, [o.kind === 'event' ? category(o.categoryId).name : o.kind === 'deadline' ? (o.done ? 'Ödev · teslim edildi' : 'Ödev teslimi') : (o.absent ? 'Ders · gitmedin' : 'Ders'), o.location].filter(Boolean).join(', ')),
+          h('span', { class: 'muted small' }, [o.kind === 'event' ? category(o.categoryId).name : o.kind === 'deadline' ? (o.done ? 'Ödev · teslim edildi' : 'Ödev teslimi') : (o.absent ? 'Ders · gitmedin' : o.absentPart ? `Ders · ${o.absentPart} saat gitmedin` : 'Ders'), o.location].filter(Boolean).join(', ')),
           clash.has(o.id) ? h('span', { class: 'pill warn' }, 'çakışma') : null)))));
   }));
   root.replaceChildren(list);
