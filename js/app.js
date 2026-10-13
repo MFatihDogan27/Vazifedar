@@ -13,11 +13,13 @@ import { openNoteForm } from './notes.js';
 import { injectTextureCSS } from './themes.js';
 import { openEventForm, openTaskForm } from './forms.js';
 import { mountQuickAdd } from './qa-ui.js';
+import { mountSearch } from './search.js';
 import { applyTheme as applyPalette, watchSystemTheme } from './theme.js';
 import * as G from './google.js';
 import { startReminderLoop } from './notify.js';
 import { initBackup } from './backup.js';
 import { registerSW } from './pwa.js';
+import { initUpdates } from './update.js';
 
 const CLOUD_REASONS = new Set(['tasks', 'courses', 'notes', 'journal', 'archive', 'settings', 'import']);
 const UI_KEY = 'vazifedar:ui2';
@@ -33,6 +35,11 @@ const viewEl = $('#view');
 const toolbarEl = $('#toolbar');
 const qaSlot = $('#qa-slot');
 const quickAdd = mountQuickAdd(qaSlot);
+// Arama: bir sonuca tıklayınca ilgili pencere açılır; takvim simgesi o tarihe, defter sonucu o güne götürür
+const search = mountSearch($('#search-slot'), {
+  onDay: (k) => { focusDay(k); ui.view = 'defter'; saveUi(); render(); },
+  onDate: (d) => { ui.view = 'calendar'; if (ui.mode === 'month' || ui.mode === 'agenda') ui.mode = 'week'; ui.anchor = new Date(d); saveUi(); render(); },
+});
 
 const ICONS = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
@@ -173,6 +180,7 @@ document.addEventListener('keydown', (e) => {
   if (k === 'n') { e.preventDefault(); if (ui.view === 'tasks') openTaskForm(); else openEventForm({}); }
   else if (e.key === '/' && ui.view !== 'tasks') { e.preventDefault(); quickAdd.focus(); }
   else if (k === 'g') { e.preventDefault(); openTaskForm(); }
+  else if (k === 'f') { e.preventDefault(); search.open(); }
   else if (ui.view === 'calendar' && k === 't') { ui.anchor = new Date(); render(); }
   else if (ui.view === 'calendar' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { ui.anchor = shiftAnchor(ui.mode, ui.anchor, e.key === 'ArrowLeft' ? -1 : 1); render(); }
   else if (ui.view === 'calendar' && ['a', 'h', 'j'].includes(k)) { ui.mode = { a: 'month', h: 'week', j: 'agenda' }[k]; saveUi(); render(); }
@@ -275,6 +283,7 @@ if (params.has('bolum') || params.has('yeni')) history.replaceState(null, '', lo
 startReminderLoop();
 initBackup();
 registerSW();
+initUpdates();
 if (state.settings.googleClientId) {
   G.loadGis().catch(() => {});
   if (state.settings.googleConnected) {

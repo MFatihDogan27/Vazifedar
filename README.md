@@ -26,6 +26,8 @@ Ayarlar → Veriler → **Yedek klasörü seç**. Vazifedar her gün o klasöre 
 
 **Görev rafı** (Bugün ekranında) — Açık görevlerin her biri bir fiş: renkli koçan önceliği gösterir, üstünde zaman yazar (son tarihe kaç gün kaldı, "Bugün", "Yarın 09:00", gecikmişse kaç gün geçtiği ve çizgili koçan; tarihsizse kaç gündür beklediği). Fişin gövdesinde ders ya da kategori, son tarih, başlık (tıklayınca görevi açar), tahmini süre (küçük daire 4 saate göre dolar), tamamlama tiki ve yerleştirme düğmesi: görev bugünkü en uzun boşluğa sığıyorsa "Boşluğa koy" ile tek tıkla oraya eklenir, sığmıyorsa takvim düğmesi ilk uygun boş zamanı bulur; zaten yerleştirilmişse gün ve saati görünür. Üstte Hepsi / Bu hafta / Ödevler / Tarihsiz süzgeci ve Enter'la görev ekleme kutusu (Orta öncelikle ekler). Yük çubuğu açık görevlerin toplam süresini bu haftanın kalanındaki boş zamanla (görev yerleştirme saatleri içinde) karşılaştırır; sığmıyorsa ne kadar taştığını söyler. En fazla 8 fiş görünür, fazlası Görevler sayfasına götürür.
 
+**Arama** — Üst çubuktaki büyüteç (ya da `Ctrl+K` / `F`) arama penceresini açar. Planlarda (başlık, tür, konum, açıklama, tarih), görevlerde ve ödevlerde, derslerde (kod, ad, hoca, derslik), unutma notlarında ve defter yazılarında birlikte arar. Harf duyarsızdır: "halisaha" yazsan da "Halısaha"yı, "odev" yazsan da "Ödev"i bulur; birden çok kelime yazarsan hepsinin geçtiği kayıtlar çıkar; "15 kasım" ya da "cuma" gibi tarihle de bulunur. Sonuçlar gruplu gelir (Planlar / Görevler / Dersler / Notlar / Defter), üstteki süzgeçlerle tek gruba daraltılır. Planlarda önce yaklaşanlar, altında "Geçmiş"; tekrarlayan planın sıradaki tarihi yazar. Bir sonuca tıklamak onu açar, takvim simgesi (ya da `Shift+Enter`) takvimde o haftaya götürür, defter sonucu o günün sayfasını açar. Son aramalar bu cihazda hatırlanır.
+
 **Unutma notları** — Saate değil bir *ana* bağlı küçük notlar. Takvimde bir derse ya da plana tıkla, pencerenin "Unutma" kısmına yaz ve ne zaman çıkacağını seç: ders için "Yalnız bu derste", "Her Lab oturumunda" (oturum türüne göre: Lab, PS…) ya da "Bu dersin her oturumunda"; plan için "Bu planda", "Her tekrarında" ya da "Her Halısaha planında" (plan türüne göre). Defter sayfasındaki **+ Unutma notu** düğmesiyle de eklenir: bir derse, bir plan türüne, bir plana ya da bir güne; "Bir sonraki sefer" ya da "Her seferinde". "Bir sonraki sefer" notu o ders/plan gelene kadar bekler, işaretlenmezse kendiliğinden bir sonrakine geçer; güne ya da tek bir kayda bağlı not zamanı geçip işaretlenmediyse "Kalanlar"a düşer. Notu olan kayıtların kadranda dilim başında küçük bir iğne başı, Günün akışı'nda notları, haftalık takvimde iğne işareti görünür.
 
 **Yarının çantası** (Bugün ekranında) — Gündüz "Bugün unutma" kartı: bugünün kalan derslerine/planlarına iğnelenen notlar, bugüne yazılan notlar ve kalanlar. Akşam (varsayılan 18:00'den sonra) kart koyulaşır ve **Yarının çantası** olur: yarınki her ders/plan saatiyle, altında götürmen ya da yapman gerekenler; her birini hazırladıkça tikle ("2/3 hazır" → "Hazır"). Bu akşam henüz başlamamış bir planın işaretlenmemiş notları da üstte görünür. Kutuya yazıp Enter'a basınca yarına not eklenir. Akşam 21:00'de (ayarlanabilir) yarın için işaretlenmemiş not varsa bildirim gelir, ayrıca dersten/plandan 1 saat önce o kaydın notları hatırlatılır. Ayarlar → Unutma notları ve çanta'dan saatler değiştirilir. Kartın altında **Defterden bir satır**: günün kısa notunu oradan yazabilirsin.
@@ -89,6 +91,8 @@ Tanıdığı ifadeler: bugün, yarın, öbür gün, haftaya/önümüzdeki + gün
 
 **Hatırlatmalar** — Vazifedar açıkken (sekme ya da yüklü uygulama penceresi, arka planda olsa da) sistem bildirimi; izin verilmezse uygulama içinde uyarı. Bildirime tıklayınca Vazifedar öne gelir. Uygulama tamamen kapalıyken bildirim gelmez; telefonda kapalıyken de hatırlatma için Google Takvim eşitlemesini aç, hatırlatma süresi Google'a da gider.
 
+**Ayarlar** — En üstte kadran renginde bir hazırlık bloğu: Google eşitleme, otomatik yedek, bildirimler ve uygulama olarak yükleme dilim dilim gösterilir ("2/4"); eksik olanın yanındaki düğme (Bağla, Klasör seç, İzin ver…) onu oradan çözer. Solda bölüm listesi her bölümün o anki durumunu yazar ("Mercan · Sistemle aynı", "Son yedek dün") ve kaydırdıkça bulunduğun bölümü işaretler; telefonda üstte kayan bir şerit olur. Renk temaları küçük kadranlar olarak seçilir; Gün saatleri bölümündeki 24 saat halkası takvimde görünen saatleri (dış yay) ve görevlerin yerleştirileceği aralığı (iç yay) gösterir. Plan türleri renkli karolarda: ikona tıklayınca ikon, yanında renk, varsayılan süre ve hatırlatma.
+
 **Otomatik yedek** — Google bağlı değilse görevler, ders programı, devamsızlık, unutma notları, defter ve kadran arşivi yalnız bu tarayıcıda durur; bağlıysa Drive'daki eşitleme kopyası da vardır ama o bir yedek değildir (yanlışlıkla silinen bir şey oradan da silinir). Bu yüzden:
 - **Chrome / Edge**: Ayarlar → Veriler → *Yedek klasörü seç*. Seçilen klasöre her gün bir yedek yazılır; son 30 günün yedeği ve daha eskilerden her ayın ilk yedeği tutulur (gerisi kendiliğinden silinir; klasördeki başka dosyalara dokunulmaz). Vazifedar klasörünün kendisini seçersen içinde `yedekler` klasörü açılır. **Google Drive ya da OneDrive klasörü seçersen** yedekler buluta da gider, bilgisayara bir şey olsa bile kaybolmaz.
 - Tarayıcı yeniden açıldığında klasör iznini yeniden isteyebilir: üstte sarı şerit çıkar, **İzin ver**'e bas (çıkarsa "Her ziyarette izin ver"i seç, bir daha sorulmaz). Klasör taşınır ya da silinirse kırmızı şerit yeni klasör seçmeni ister.
@@ -101,6 +105,7 @@ Tanıdığı ifadeler: bugün, yarın, öbür gün, haftaya/önümüzdeki + gün
 | Tuş | İşlev |
 |---|---|
 | `/` | Hızlı ekleme kutusu (üst çubukta) |
+| `Ctrl+K` ya da `F` | Ara (içinde `↑`/`↓` gez, `Enter` aç, `Shift+Enter` takvimde göster, `Tab` grup değiştir) |
 | `N` | Yeni plan (Görevler sayfasında yeni görev) |
 | `G` | Yeni görev |
 | `T` | Bugüne dön |
@@ -168,6 +173,7 @@ js/forms.js       Plan, ders, görev/ödev formları; çakışma uyarısı; deva
 js/recurrence.js  Tekrar kuralları (açılım, açıklama, Google RRULE)
 js/quickadd.js    Hızlı ekleme ayrıştırıcısı (Türkçe tarih/saat/tekrar)
 js/qa-ui.js       Hızlı ekleme kutusu
+js/search.js      Arama (planlar, görevler, dersler, notlar, defter; Türkçe harf duyarsız)
 js/today.js       Bugün ekranı (kadran, geri sayım, günün akışı)
 js/notes.js       Unutma notları, yarının çantası, not formu
 js/journal.js     Defter: kadran arşivi, gün sayfası, günlük, pul albümü
@@ -177,7 +183,7 @@ js/icons.js       İkon seti
 js/theme.js       Renk temaları
 js/tasks.js       Görev panosu
 js/courses.js     Ders programı sayfası
-js/settings.js    Ayarlar
+js/settings.js    Ayarlar (hazırlık kadranı, bölüm listesi, gün saatleri halkası, kategori karoları)
 js/google.js      Google Takvim eşitlemesi (OAuth + Calendar API)
 js/notify.js      Hatırlatma bildirimleri
 js/prayer.js      Namaz vakitleri (Diyanet yöntemiyle hesap, 81 il)
