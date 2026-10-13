@@ -2,7 +2,7 @@
 import { h, toast } from './ui.js';
 import { state, subscribe, dueDate, onSaveError, rollSeries } from './store.js';
 import { parseLocal, timeStr, AYLAR, toDateKey, startOfWeek, addDays } from './dates.js';
-import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor, NARROW_WEEK } from './calendar.js';
+import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor, NARROW_WEEK, forgetWeekPos } from './calendar.js';
 import { renderTasks } from './tasks.js';
 import { renderCourses } from './courses.js';
 import { renderSettings } from './settings.js';
@@ -69,6 +69,20 @@ const VIEWS = [
 
 function setView(v) { ui.view = v; saveUi(); render(); }
 
+// Bugün: takvimi bugüne getirir. Telefondaki haftada kaydırılan gün de unutulur (yoksa aynı haftada
+// kaldığı yere dönerdi). Zaten bugündeyse bir şey değişmiş gibi görünmesin diye bugün kısaca parlar.
+function goToday() {
+  ui.anchor = new Date();
+  forgetWeekPos();
+  render();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const el of viewEl.querySelectorAll('.wk-col.today, .wk-day-h.today, .wk-ch.today, .mo-cell.today, .ag-day.today')) {
+      el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 1300);
+    }
+  }));
+}
+
 function renderNav() {
   const openTasks = state.tasks.filter((t) => !t.done).length;
   for (const nav of document.querySelectorAll('.nav')) {
@@ -87,7 +101,7 @@ function renderToolbar() {
     }, l)));
     toolbarEl.replaceChildren(
       h('div', { class: 'tb-left' },
-        h('button', { class: 'btn', onclick: () => { ui.anchor = new Date(); render(); } }, 'Bugün'),
+        h('button', { class: 'btn', onclick: goToday }, 'Bugün'),
         h('div', { class: 'nav-arrows' },
           h('button', { class: 'icon-btn', 'aria-label': 'Önceki', onclick: () => { ui.anchor = shiftAnchor(ui.mode, ui.anchor, -1); render(); } }, '‹'),
           h('button', { class: 'icon-btn', 'aria-label': 'Sonraki', onclick: () => { ui.anchor = shiftAnchor(ui.mode, ui.anchor, 1); render(); } }, '›')),
@@ -122,7 +136,7 @@ function renderMain() {
     if (ui.mode === 'month') renderMonth(viewEl, ui.anchor, { onDayOpen: (d, ev) => zoom('in', ev, () => { ui.anchor = d; ui.mode = 'week'; saveUi(); render(); }) });
     else if (ui.mode === 'agenda') renderAgenda(viewEl, ui.anchor);
     else renderWeek(viewEl, ui.anchor);
-  } else if (ui.view === 'today') renderToday(viewEl, { onWeek: () => { ui.view = 'calendar'; ui.mode = 'week'; ui.anchor = new Date(); saveUi(); render(); }, onCourses: () => setView('courses'), onTasks: () => setView('tasks'), onJournal: () => setView('defter') });
+  } else if (ui.view === 'today') renderToday(viewEl, { onWeek: () => { ui.view = 'calendar'; ui.mode = 'week'; ui.anchor = new Date(); forgetWeekPos(); saveUi(); render(); }, onCourses: () => setView('courses'), onTasks: () => setView('tasks'), onJournal: () => setView('defter') });
   else if (ui.view === 'term') renderTerm(viewEl, { onGoCourses: () => setView('courses') });
   else if (ui.view === 'tasks') renderTasks(viewEl);
   else if (ui.view === 'defter') renderJournal(viewEl);
@@ -192,7 +206,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === '/' && ui.view !== 'tasks') { e.preventDefault(); quickAdd.focus(); }
   else if (k === 'g') { e.preventDefault(); openTaskForm(); }
   else if (k === 'f') { e.preventDefault(); search.open(); }
-  else if (ui.view === 'calendar' && k === 't') { ui.anchor = new Date(); render(); }
+  else if (ui.view === 'calendar' && k === 't') goToday();
   else if (ui.view === 'calendar' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { ui.anchor = shiftAnchor(ui.mode, ui.anchor, e.key === 'ArrowLeft' ? -1 : 1); render(); }
   else if (ui.view === 'calendar' && ['a', 'h', 'j'].includes(k)) { ui.mode = { a: 'month', h: 'week', j: 'agenda' }[k]; saveUi(); render(); }
   else if ((e.key === '+' || e.key === '-') && ZOOMABLE.includes(ui.view)) { e.preventDefault(); stepZoom(e.key === '+' ? 'in' : 'out', null); }

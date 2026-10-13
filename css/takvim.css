@@ -275,3 +275,8 @@ html[data-zoom="out"]::view-transition-new(vz-view) { animation-name: vz-new-out
 .tt.narrow .tt-item strong { font-family: var(--display); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt.narrow .tt-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
 .tt.narrow .tt-item .tt-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; opacity: .95; font-size: 12px; line-height: 1.2; margin-bottom: 2px; }
+
+/* "Bugün"e basınca bugünün sütunu / hücresi kısaca parlar */
+@keyframes vz-today-flash { 0%, 25% { box-shadow: inset 0 0 0 3px var(--hero); background-color: color-mix(in srgb, var(--hero) 16%, transparent); } 100% { box-shadow: inset 0 0 0 3px transparent; } }
+.flash { animation: vz-today-flash 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .flash { animation-duration: .01s; } }

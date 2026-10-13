@@ -18,6 +18,8 @@ import { hijri, holyDay, moonPhaseOn, moonGlyph, HICRI_AYLAR } from './hicri.js'
 export const NARROW_WEEK = '(max-width: 640px)';
 export const isNarrowWeek = () => !!window.matchMedia?.(NARROW_WEEK).matches;
 const narrowPos = { ws: '', left: null }; // haftada nerede kalındı (dakikalık yeniden çizimde kaybolmasın)
+// "Bugün" gibi bilinçli bir dönüşte kalınan yer unutulur: görünüm bugünün sütunundan açılır
+export function forgetWeekPos() { narrowPos.ws = ''; narrowPos.left = null; }
 
 const PX_PER_HOUR = 52;  // dolu saat
 const QUIET_PX = 20;     // haftanın hiçbir gününde kaydı olmayan saat (esnek eksen)
