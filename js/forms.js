@@ -14,6 +14,7 @@ import { SIKLIK, describe, alignStart, isRecurring } from './recurrence.js';
 import { ic } from './icons.js';
 import { pinSection } from './notes.js';
 import { applyTexture, textureKey, themedCard } from './themes.js';
+import { topicsEditor, occurrenceTopics } from './topics.js';
 // "Her salı, 8 Ocak tarihine kadar" → cümle içinde: yalnız ilk harf küçülür
 const lcFirst = (x) => x.charAt(0).toLocaleLowerCase('tr') + x.slice(1);
 
@@ -435,7 +436,7 @@ export function conflictDialog(data, conflicts) {
 // ---------------------------------------------------------------------------
 // Ders formu (haftalık oturumlar + devamsızlık sınırı)
 // ---------------------------------------------------------------------------
-export function openCourseForm(courseId) {
+export function openCourseForm(courseId, { focus = '' } = {}) {
   const existing = courseId ? state.courses.find((c) => c.id === courseId) : null;
   const c = existing ? JSON.parse(JSON.stringify(existing)) : {
     name: '', code: '', instructor: '', color: PALET[state.courses.length % PALET.length], skips: [], absences: [],
@@ -494,6 +495,9 @@ export function openCourseForm(courseId) {
     },
   }, 'Dönemin %30\'u');
 
+  // Konular: ders kodu okulun müfredatındaysa kendiliğinden dolar
+  const topicsEd = topicsEditor(c, { code, name, isNew: !existing });
+
   const body = h('form', { class: 'form', onsubmit: (e) => e.preventDefault() },
     h('div', { class: 'grid-2' }, field('Ders adı', name), field('Ders kodu', code)),
     h('div', { class: 'grid-2' }, field('Öğretim üyesi', instructor), field('Renk', swatches)),
@@ -502,6 +506,7 @@ export function openCourseForm(courseId) {
     h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Devamsızlık hakkı'),
       h('div', { class: 'row' }, limitIn, unitSel, suggestBtn),
       h('span', { class: 'field-hint' }, 'Boş bırakırsan yalnız sayar, uyarmaz. Oranı yönetmelikten ya da ders izlencesinden kontrol et. Bir derse gitmediğinde takvimde o derse tıklayıp "Gitmedim" de.')),
+    topicsEd.el,
   );
 
   const actions = [];
@@ -526,6 +531,7 @@ export function openCourseForm(courseId) {
         const ok = await confirmDialog({ title: 'Ders saatleri çakışıyor', message: `Bu ders ${[...new Set(cf.map((x) => x.course.code || x.course.name))].join(', ')} ile aynı saatlere denk geliyor. Yine de kaydedilsin mi?`, okLabel: 'Yine de kaydet' });
         if (!ok) return;
       }
+      topicsEd.clean();
       const data = {
         ...c, name: name.value.trim(), code: code.value.trim(), instructor: instructor.value.trim(), color,
         absenceLimit: limitIn.value === '' ? '' : Math.max(0, Number(limitIn.value)), absenceUnit: unitSel.value,
@@ -538,6 +544,7 @@ export function openCourseForm(courseId) {
     },
   });
   openModal({ title: existing ? 'Dersi düzenle' : 'Ders ekle', body, actions, wide: true });
+  if (focus === 'topics') requestAnimationFrame(() => topicsEd.el.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
 export function absenceMeter(c, { compact = false } = {}) {
@@ -566,6 +573,7 @@ export function openCourseOccurrence(occ) {
     absent ? h('p', { class: 'absent-note' }, ic('x', { size: 15 }), ' Bu derse gitmedin olarak işaretli.') : null,
     pinSection(occ),
     absenceMeter(c),
+    occurrenceTopics(c, occ.start),
     h('div', { class: 'occ-tasks' },
       h('div', { class: 'occ-tasks-head' }, h('strong', {}, 'Ödevler ve teslimler'),
         h('button', { type: 'button', class: 'btn small ghost', onclick: () => { m.close(); openTaskForm(null, { courseId: c.id }); } }, '+ Ödev ekle')),

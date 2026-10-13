@@ -42,6 +42,7 @@ Yüklenince kendi simgesiyle ayrı pencerede açılır ve internet yokken de ça
 1. **Dönem** kutusuna **Dönem başlangıcı** ve **Dönem sonu** tarihlerini yaz. Bayram ve ara tatil gibi günleri **Tatil ekle** ile ekle; o günlerde ders görünmez.
 2. **+ Ders ekle** ile her dersi bir kez gir: kod, ad, hoca, renk ve oturumlar (gün, saat, derslik, Teori / Lab / PS). Bir dersin birden çok oturumu olabilir.
 3. İstersen **devamsızlık hakkını** da yaz. "Dönemin %30'u" düğmesi bir öneri hesaplar; asıl oranı kendi yönetmeliğinden kontrol et.
+4. TOBB ETÜ'deysen ders kodunu yazman yeter: dersin adı ve işlenecek **konuları** okulun müfredatından kendiliğinden gelir (bkz. [Ders konuları](#ders-konuları)).
 
 Dersler artık dönem boyunca her hafta takvimde ve Bugün ekranının kadranında görünür. Dersler sayfasındaki **Haftalık çizelge** telefonda takvimdeki gibi mercek düzenindedir: üstteki halkalar o günün derslerini (ortada ders sayısı) gösterir, altta günler yana kayar ve her derste kod, ad, saat ve derslik okunur.
 
@@ -192,6 +193,19 @@ Hafta, Ay ve Ajanda görünümleri vardır (`H`, `A`, `J` tuşları ya da üstte
 - O hafta yapılmayacak bir ders için derse dokunup **Bu haftaki dersi iptal et** de.
 - **Dönem** sekmesi (Dönem haritası) dönemin tamamını tek ekranda gösterir: sınavlar, teslimler, tatiller ve haftalık yük grafiği (yoğun haftalar kırmızı).
 
+### Ders konuları
+
+Her dersin işlenecek konuları Dersler sayfasındaki **Konular** panelinde durur; çalıştıkça bitirdiğin konuyu işaretlersin.
+
+- **Kendiliğinden gelir**: Ders kodu TOBB ETÜ müfredatında varsa (ELE 224, MAT 202, BİL 264L…) konular okulun ders sayfasındaki haftalık plandan (ABYS → "Referans Ders Çizelgesi") alınır. Arka arkaya aynı konunun işlendiği haftalar tek konu olur: "Diyot Devreleri · 4–5. hafta". Kodu yazarken boşluk, büyük-küçük harf ya da İ/I farkı önemli değil.
+- **İşaretlemek**: Her dersin kartında ilerleme halkası (bitti / toplam) ve sıradaki konu var. Sağdaki yuvarlağa dokununca sıradaki konu biter. Karta dokununca bütün konular açılır; istediğini işaretle ya da işareti kaldır. Bütün konular bitince kart dersin rengine boyanır.
+- **Programla karşılaştırma**: Dönem başlangıcı girildiyse panel dönemin kaçıncı haftasında olduğunu yazar, o haftanın konusu "bu hafta" diye işaretlenir. Takibe başladığın bir derste geçen haftaların bitmemiş konuları "2 konu geride" diye, sırası gelmeden bitirdiklerin "programın önünde" diye görünür. Bir haftalık ara tatil programı bir hafta kaydırır.
+- **Takvimden**: Takvimde bir derse dokununca açılan pencerede o haftanın konusu ve sıradaki konun var; dersten çıkınca oradan da işaretleyebilirsin.
+- **Düzenlemek**: Dersi düzenle → **Konular**: konu ekle, sil, yukarı taşı, başlığını ya da haftasını ("4" ya da "4-5") değiştir. Hocan farklı sırayla anlatıyorsa böyle uydur. **Okulun müfredatından yenile** konuları yeniden getirir; bitirdiklerin işaretli kalır, kendi eklediklerin sona geçer.
+- **Yapıştırarak**: Dersi düzenle → Konular → **Yapıştır**. Ders sayfasındaki (ya da hocanın izlencesindeki) haftalık planı kopyalayıp kutuya bırak; Vazifedar haftaları ayırıp konuları yerleştirir, ne bulduğunu altında gösterir. "1. Hafta: …", "Hafta 1 – …", tablodan kopyalanmış "1 ⇥ konu", numarasız liste olur. "Fonksiyonlar (devam)" gibi satırlar önceki konuyla birleşir (Fonksiyonlar · 7–8. hafta). Var olan konuların yerine geçer; bitirdiklerin aynı adla duruyorsa işaretli kalır.
+- Kodu müfredatta olmayan derslerin (seçmelilerin bir kısmı, başka okullar) konularını yapıştırarak ya da tek tek eklersin; panelin altındaki "Konusu olmayan" satırından o derse gidebilirsin.
+- Konular dersin parçasıdır; Google'a bağlıysan öteki cihazlarına da gider.
+
 ### Görevler ve ödevler
 
 - **Görevler** belirli bir güne bağlı olmayan "bir ara yapılacak" işlerdir. Dört öncelik (Acil, Yüksek, Orta, Düşük) sütun olarak durur; bilgisayarda kartı sürükleyerek önceliğini değiştirirsin. Telefonda göreve **basılı tut** (bilgisayarda sağ tık): öncelik seçimi, **Takvime yerleştir** ve **Düzenle** çıkar. Kategori, son tarih, tahmini süre ve not eklenebilir. Klavyede `G` yeni görev açar.
@@ -334,6 +348,10 @@ js/notes.js           Unutma notları, yarının çantası
 js/journal.js         Defter: kadran arşivi, gün sayfası, günlük, pul albümü
 js/tasks.js           Görev panosu, öncelik menüsü, tekrar etiketi
 js/courses.js         Ders programı sayfası
+js/topics.js          Ders konuları: müfredattan getirme, işaretleme, Konular paneli, konu düzenleyici
+mufredat/tobb-etu.json  TOBB ETÜ derslerinin haftalık konuları (ABYS'den çekilmiş)
+mufredat/guncelle.mjs   Müfredatı okulun sitesinden yeniden çeker (node mufredat/guncelle.mjs)
+mufredat/github-eylemi.yml  İstenirse GitHub'ın bunu ayda bir yapması için (.github/workflows/'a kopyalanır)
 js/term.js            Dönem haritası
 js/forms.js           Plan, ders, görev/ödev formları; çakışma; devamsızlık; takvime yerleştirme
 js/quickadd.js        Hızlı ekleme ayrıştırıcısı (Türkçe tarih/saat/tekrar)

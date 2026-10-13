@@ -8,6 +8,7 @@ import * as G from './google.js';
 import { isNarrowWeek } from './calendar.js';
 import { ring } from './journal.js';
 import { isoWeekday } from './dates.js';
+import { topicsPanel, autoFillTopics } from './topics.js';
 
 const PX = 46; // saat başına piksel
 
@@ -201,6 +202,8 @@ export function renderCourses(root) {
 
   const tt = timetable();
   root.replaceChildren(h('div', { class: 'courses' },
-    h('div', { class: 'courses-main' }, tt ? h('section', { class: 'panel' }, h('h3', {}, 'Haftalık çizelge'), tt) : null, list),
+    h('div', { class: 'courses-main' }, tt ? h('section', { class: 'panel' }, h('h3', {}, 'Haftalık çizelge'), tt) : null, topicsPanel(), list),
     h('div', { class: 'courses-side' }, hwCard, termCard, gCard)));
+  // Kodu okulun müfredatında olan derslerin konularını bir kez kendiliğinden getir
+  autoFillTopics();
 }
