@@ -2,7 +2,7 @@
 // Strateji: önce ağ (sunucu/internet varsa her zaman en yeni dosyalar), olmazsa son kaydedilen kopya.
 // Yeni bir dosya eklenirse SHELL listesine de ekle (eklenmese bile ilk çevrimiçi açılışta önbelleğe girer).
 // Güncelleme denetimi (js/update.js) de bu listedeki dosyalara bakar.
-const VERSION = '2026-10-13d';
+const VERSION = '2026-10-13e';
 const CACHE = `vazifedar-${VERSION}`;
 const FONTS = 'vazifedar-fonts';
 const SHELL = [

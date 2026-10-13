@@ -1,6 +1,6 @@
 // Vazifedar — ana uygulama: üst çubuk, gezinme, araç çubuğu, otomatik işler.
 import { h, toast } from './ui.js';
-import { state, subscribe, dueDate } from './store.js';
+import { state, subscribe, dueDate, onSaveError } from './store.js';
 import { parseLocal, timeStr, AYLAR, toDateKey, startOfWeek, addDays } from './dates.js';
 import { renderWeek, renderMonth, renderAgenda, calendarTitle, shiftAnchor } from './calendar.js';
 import { renderTasks } from './tasks.js';
@@ -17,7 +17,7 @@ import { mountSearch } from './search.js';
 import { applyTheme as applyPalette, watchSystemTheme } from './theme.js';
 import * as G from './google.js';
 import { startReminderLoop } from './notify.js';
-import { initBackup } from './backup.js';
+import { initBackup, downloadBackup } from './backup.js';
 import { registerSW } from './pwa.js';
 import { initUpdates } from './update.js';
 
@@ -172,6 +172,16 @@ subscribe((reason, opts) => {
   render();
 });
 G.onStatus((st) => renderSync(st));
+
+// Tarayıcıya kaydedilemedi (depolama dolu ya da kapalı): sessizce kaybolmasın, yedek indirmeyi öner
+let saveWarnAt = 0;
+onSaveError(() => {
+  if (Date.now() - saveWarnAt < 60000) return;
+  saveWarnAt = Date.now();
+  toast('Değişiklik bu cihaza kaydedilemedi: tarayıcı depolaması dolu ya da kapalı. Kaybolmasın diye yedek indir.', {
+    kind: 'warn', ms: 15000, action: { label: 'Yedek indir', onClick: downloadBackup },
+  });
+});
 
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('.overlay')) return;

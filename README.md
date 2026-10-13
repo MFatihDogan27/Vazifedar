@@ -113,7 +113,8 @@ Kimseye bağlı kalmak istemiyorsan aşağıdaki [Google Cloud kurulumu](#google
 - **Ödev teslimleri** de Google Takvim'e gider: teslim saatinde biten kısa bir etkinlik olarak, 1 gün ve 3 saat önce hatırlatmayla. Böylece telefonundaki takvimde görünür ve Vazifedar kapalıyken de hatırlatılır. Ödevi tamamlayınca başına ✓ gelir ve hatırlatması kalkar; silince Google'dan da silinir. Ayarlar → Google Takvim → **Görevler Google Takvim'de** kısmından son tarihli görevleri de gönderebilir (tüm gün, bir gün önce sabah 9'da hatırlatır) ya da hiçbirini göndermeyebilirsin. Bu seçim cihaza özeldir.
 - Ödevlerin ve derslerin Google'daki kopyalarını Vazifedar'dan değiştir. Google'da elle değiştirdiğin ya da sildiğin bir kopya bir sonraki eşitlemede Vazifedar'daki hâline döner.
 - Eşitleme kendiliğinden 10 dakikada bir, uygulamaya geri döndüğünde ve bir değişiklikten birkaç saniye sonra çalışır. Üst çubuktaki eşitleme düğmesine basarak elle de eşitleyebilirsin.
-- Bir kayıt iki yerde birden değiştiyse eşitlemeyi yapan cihazdaki kazanır. İlk eşitlemede hiçbir şey silinmez, iki taraf birleşir.
+- Bir görev, ders ya da not iki cihazda birden değiştiyse alan alan birleşir: telefonda bir görevi tamamlayıp bilgisayarda başlığını düzelttiysen ikisi de kalır. Aynı şeyi (ör. aynı görevin başlığını) iki yerde farklı değiştirdiysen en son yapılan değişiklik kazanır. Bir cihazda silinip öbüründe değiştirilen kayıt silinmez. İlk eşitlemede hiçbir şey silinmez, iki taraf birleşir.
+- Bir değişiklik tarayıcıya kaydedilemezse (depolama dolu ya da kapalı) Vazifedar uyarır ve **Yedek indir** düğmesi gösterir.
 - Google oturumu yaklaşık 1 saatte bir yenilenmek ister. O zaman üst çubukta **Yeniden bağlan** çıkar; tek tıkla yenilenir.
 
 ### Yedek

@@ -130,18 +130,54 @@ function load() {
 
 export const state = load();
 const listeners = new Set();
+const saveErrorListeners = new Set();
 let saveTimer = null;
 
+// Cihazlar arası eşitlenen listelerde (görev, ders, not, kategori) değişen öğeye değişiklik zamanı
+// (updatedAt) yazılır. İki cihazda aynı öğe değişirse eşitlemede daha yeni olan kazanır.
+// Her commit'te önceki hâlle karşılaştırılır; böylece öğeyi değiştiren her yerin bunu ayrıca
+// yapması gerekmez. Buluttan gelen (cloud) ya da yedekten yüklenen (import) değişiklik damgalanmaz.
+const STAMPED = ['tasks', 'courses', 'notes', 'categories', 'taskCategories'];
+const bodyOf = (x) => { const { updatedAt, ...rest } = x; return JSON.stringify(rest); };
+let marks = null;
+function takeMarks() {
+  marks = {};
+  for (const k of STAMPED) marks[k] = new Map((state[k] || []).filter((x) => x && typeof x === 'object').map((x) => [x.id, bodyOf(x)]));
+}
+function stampChanges(reason) {
+  if (marks && reason !== 'cloud' && reason !== 'import') {
+    const now = new Date().toISOString();
+    for (const k of STAMPED) {
+      for (const x of state[k] || []) {
+        if (x && typeof x === 'object' && marks[k].get(x.id) !== bodyOf(x)) x.updatedAt = now;
+      }
+    }
+  }
+  takeMarks();
+}
+takeMarks();
+
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+// Tarayıcıya kaydedilemediğinde (depolama dolu ya da kapalı) haber ver
+export function onSaveError(fn) { saveErrorListeners.add(fn); return () => saveErrorListeners.delete(fn); }
 
 export function commit(reason = 'change', opts = {}) {
+  stampChanges(reason);
   clearTimeout(saveTimer);
   saveTimer = setTimeout(save, 150);
   for (const fn of listeners) fn(reason, opts);
 }
 export function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.error(e); }
+  clearTimeout(saveTimer); saveTimer = null;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {
+    console.error(e);
+    for (const fn of saveErrorListeners) fn(e);
+  }
 }
+// Sayfa kapanırken ya da arka plana geçerken bekleyen kaydı hemen yaz (150 ms'lik bekleme kaybolmasın)
+const flush = () => { if (saveTimer) save(); };
+globalThis.addEventListener?.('pagehide', flush);
+globalThis.document?.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 export function replaceState(next) {
   const m = migrate(next);
   for (const k of Object.keys(state)) delete state[k];

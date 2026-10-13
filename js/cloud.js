@@ -42,12 +42,59 @@ export function clearBase() { try { localStorage.removeItem(BASE_KEY); } catch {
 subscribe((reason) => { if (reason === 'import') clearBase(); });
 
 // ---------- birleştirme ----------
-function resolve(key, l, r, hasBase) {
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+// Bir öğe iki cihazda da değişmişse alan alan birleştirilir: yalnız bir tarafta değişen alan o
+// taraftan alınır (telefonda "tamamlandı", bilgisayarda başlık düzeltildiyse ikisi de kalır).
+// İç içe nesneler de alan alan, listeler öğe öğe birleşir (ders oturumları kimliğe göre; iptal
+// edilen haftalar, devamsızlıklar gibi kimliksiz öğeler içeriğe göre): bir tarafta eklenen kalır,
+// bir tarafta silinen gider. Aynı alan iki tarafta da farklı değiştiyse değişiklik zamanı
+// (updatedAt) daha yeni olan kazanır.
+const itemKey = (x) => (isObj(x) && x.id !== undefined ? `#${x.id}` : str(x));
+function mergeValue(lv, rv, bv, rNewer) {
+  if (same(lv, rv)) return lv;
+  if (same(lv, bv)) return rv;
+  if (same(rv, bv)) return lv;
+  if (lv === undefined) return rv;   // bir tarafta silinmiş, öbüründe değişmiş: değişen kalsın
+  if (rv === undefined) return lv;
+  if (isObj(lv) && isObj(rv) && isObj(bv)) return mergeObj(lv, rv, bv, rNewer);
+  if (Array.isArray(lv) && Array.isArray(rv) && Array.isArray(bv)) return mergeArr(lv, rv, bv, rNewer);
+  return rNewer ? rv : lv;
+}
+function mergeObj(l, r, b, rNewer) {
+  const out = { ...l };
+  for (const k of new Set([...Object.keys(l), ...Object.keys(r)])) {
+    if (k === 'updatedAt') continue;
+    const v = mergeValue(l[k], r[k], b[k], rNewer);
+    if (v === undefined) delete out[k]; else out[k] = v;
+  }
+  return out;
+}
+function mergeArr(l, r, b, rNewer) {
+  const m = (a) => new Map(a.map((x) => [itemKey(x), x]));
+  const lm = m(l), rm = m(r), bm = m(b);
+  const out = [];
+  for (const k of new Set([...lm.keys(), ...rm.keys()])) {
+    const v = mergeValue(lm.get(k), rm.get(k), bm.get(k), rNewer);
+    if (v !== undefined) out.push(v);
+  }
+  return out;
+}
+function mergeFields(l, r, b) {
+  const lu = l.updatedAt || '', ru = r.updatedAt || '';
+  const out = mergeObj(l, r, b, ru > lu);
+  if (lu || ru) out.updatedAt = ru > lu ? ru : lu;
+  return out;
+}
+
+function resolve(key, l, r, hasBase, b) {
+  const longer = () => ((str(r).length > str(l).length) ? r : l);
   // Kadran arşivi: daha dolu olan (boş cihazın boş kadranı doluyu ezmesin)
-  if (key === 'archive' || !hasBase) return (str(r).length > str(l).length) ? r : l;
-  const lu = l?.updatedAt, ru = r?.updatedAt;
-  if (lu && ru && lu !== ru) return ru > lu ? r : l;
-  return l;
+  if (key === 'archive') return longer();
+  if (hasBase && isObj(l) && isObj(r) && isObj(b)) return mergeFields(l, r, b);
+  // İki tarafta da değişmiş: değişiklik zamanı olan / daha yeni olan kazanır
+  const lu = l?.updatedAt || '', ru = r?.updatedAt || '';
+  if (lu !== ru) return ru > lu ? r : l;
+  return hasBase ? l : longer();
 }
 function merge3(key, L, R, B, hasBase) {
   if (same(L, R)) return L;
@@ -57,7 +104,7 @@ function merge3(key, L, R, B, hasBase) {
   }
   if (L === undefined) return R;
   if (R === undefined) return L;
-  return resolve(key, L, R, hasBase);
+  return resolve(key, L, R, hasBase, B);
 }
 function mergeList(key, L = [], R = [], B = [], hasBase) {
   const idx = (a) => new Map((a || []).map((x) => [x.id, x]));
@@ -92,18 +139,15 @@ export function merge(local, remote, base) {
 
 // ---------- Drive ----------
 // api: google.js'teki yetkili istek fonksiyonu (tam adres kabul eder)
-async function findFile(api, base) {
-  if (base?.fileId) {
-    try {
-      const m = await api('GET', `${DRIVE}/files/${base.fileId}`, { query: { fields: 'id,version,trashed' } });
-      if (m && !m.trashed) return m;
-    } catch (e) { if (e.status !== 404) throw e; }
-  }
+// Veri dosyaları, en eskisi başta. Normalde tek dosya vardır; iki cihaz ilk kez aynı anda bağlanırsa
+// ikisi de dosya oluşturabilir. Her cihaz en eskiyi esas alır, fazlalıklar birleştirilip silinir.
+async function listFiles(api) {
   const list = await api('GET', `${DRIVE}/files`, {
-    query: { spaces: 'appDataFolder', q: `name='${FILE}' and trashed=false`, fields: 'files(id,version,modifiedTime)', orderBy: 'modifiedTime desc', pageSize: 10 },
+    query: { spaces: 'appDataFolder', q: `name='${FILE}' and trashed=false`, fields: 'files(id,version,createdTime)', orderBy: 'createdTime', pageSize: 10 },
   });
-  return list?.files?.[0] || null;
+  return list?.files || [];
 }
+const download = async (api, id) => (await api('GET', `${DRIVE}/files/${id}`, { query: { alt: 'media' } }))?.data || null;
 
 async function upload(api, fileId, payload) {
   const json = JSON.stringify(payload);
@@ -121,26 +165,37 @@ async function upload(api, fileId, payload) {
 export async function cloudSync(api) {
   const base = loadBase();
   const local = pick();
-  const meta = await findFile(api, base);
+  const [meta = null, ...extras] = await listFiles(api);
   const fileId = meta?.id || null;
   const hasBase = !!base && base.fileId === fileId && !!fileId;
 
   // Hiçbir şey değişmediyse indirme bile yapma
-  if (hasBase && String(base.version) === String(meta.version) && same(local, base.data)) return { pulled: false, pushed: false };
+  if (hasBase && !extras.length && String(base.version) === String(meta.version) && same(local, base.data)) return { pulled: false, pushed: false };
 
   let remote = null;
   if (fileId) {
     if (hasBase && String(base.version) === String(meta.version)) remote = base.data;
-    else {
-      const doc = await api('GET', `${DRIVE}/files/${fileId}`, { query: { alt: 'media' } });
-      remote = doc?.data || null;
-    }
+    else remote = await download(api, fileId);
+  }
+  // Fazladan oluşmuş dosyaların içeriği de kaybolmasın (tabansız birleştirme: hiçbir şey silinmez)
+  for (const x of extras) {
+    const d = await download(api, x.id);
+    if (d) remote = remote ? merge(remote, d, null) : d;
   }
 
   const merged = remote ? merge(local, remote, hasBase ? base.data : null) : local;
 
   // Ağ beklenirken burada bir şey değiştiyse bu turu bırak (kullanıcının yazdığını ezmeyelim)
   if (!same(pick(), local)) return { pulled: false, pushed: false, retry: true };
+
+  // Yazmadan hemen önce: biz indirip birleştirirken başka bir cihaz dosyayı değiştirdiyse onun
+  // yazdığını ezmeyelim; bu turu bırak, yeni hâliyle baştan birleştir
+  // Ana dosyaya yazılacak mı: içerik değiştiyse ya da fazla dosyalardan bir şey katıldıysa
+  const mustWrite = !remote || extras.length > 0 || !same(merged, remote);
+  if (fileId && mustWrite) {
+    const cur = await api('GET', `${DRIVE}/files/${fileId}`, { query: { fields: 'version' } });
+    if (String(cur?.version) !== String(meta.version)) return { pulled: false, pushed: false, retry: true };
+  }
 
   let pulled = false;
   if (!same(merged, local)) {
@@ -152,9 +207,12 @@ export async function cloudSync(api) {
   let version = meta?.version;
   let id = fileId;
   let pushed = false;
-  if (!remote || !same(merged, remote)) {
+  if (mustWrite) {
     const res = await upload(api, fileId, { app: 'vazifedar', format: 1, savedAt: new Date().toISOString(), data: merged });
     id = res.id; version = res.version; pushed = true;
+  }
+  for (const x of extras) {
+    try { await api('DELETE', `${DRIVE}/files/${x.id}`); } catch (e) { if (e.status !== 404) console.warn('Fazla dosya silinemedi', e); }
   }
   saveBase({ fileId: id, version, data: merged });
   return { pulled, pushed };
