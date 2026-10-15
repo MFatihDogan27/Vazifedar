@@ -148,9 +148,10 @@ const SECTIONS = [
   } },
   { id: 'hatirlatma', icon: 'bell', name: 'Hatırlatmalar', sum: () => {
     const p = state.settings.pins;
-    return `Çanta ${p.showFrom || '18:00'} · ${p.notify === false ? 'bildirim kapalı' : `bildirim ${p.notifyAt || '21:00'}`}`;
+    const ln = state.settings.lessonNotify?.beforeMin;
+    return `${ln === null || ln === undefined ? 'Ders kapalı' : `Ders ${ln} dk önce`} · ${p.notify === false ? 'çanta bildirimi kapalı' : `çanta ${p.notifyAt || '21:00'}`}`;
   } },
-  { id: 'namaz', icon: 'moon', name: 'Namaz vakitleri', sum: () => (state.settings.prayer.enabled ? state.settings.prayer.city || 'Konumum' : 'Kapalı') },
+  { id: 'namaz', icon: 'moon', name: 'Namaz vakitleri', sum: () => { const p = state.settings.prayer; const cuma = p.fridayMin !== null && p.fridayMin !== undefined; return p.enabled ? `${p.city || 'Konumum'}${cuma ? ' · cuma hatırlatması' : ''}` : (cuma ? 'Yalnız cuma hatırlatması' : 'Kapalı'); } },
   { id: 'kategori', icon: 'star', name: 'Kategoriler', sum: () => `${state.categories.length} plan · ${state.taskCategories.length} görev türü` },
   { id: 'veri', icon: 'archive', name: 'Veriler ve yedek', sum: () => `Son yedek ${ago(backupStatus().lastAt)}` },
   { id: 'uygulama', icon: 'device', name: 'Uygulama', sum: () => `${isStandalone() ? 'Yüklü' : 'Tarayıcıda'} · ${updateStatus().state === 'available' ? 'yeni sürüm var' : updateStatus().state === 'current' ? 'güncel' : 'sürüm'}` },
@@ -421,8 +422,26 @@ function remindersSection(rerender) {
   before.onchange = () => { p.beforeMin = before.value === '' ? null : Number(before.value); save(); };
   const on = toggle(p.notify !== false, (v) => { p.notify = v; at.disabled = !v; before.disabled = !v; save(); }, 'Unutma notlarını bildir');
 
+  // Derslerden önce: adı ve dersliği
+  const ln = state.settings.lessonNotify;
+  const lnBefore = h('select', {}, [['', 'Kapalı'], ['5', '5 dk önce'], ['10', '10 dk önce'], ['15', '15 dk önce'], ['20', '20 dk önce'], ['30', '30 dk önce'], ['45', '45 dk önce'], ['60', '1 saat önce']]
+    .map(([v, l]) => h('option', { value: v }, l)));
+  lnBefore.value = ln.beforeMin === null || ln.beforeMin === undefined ? '' : String(ln.beforeMin);
+  const lnGoogle = toggle(ln.google !== false, (v) => { ln.google = v; save(); }, 'Google Takvim\'deki derslere de koy');
+  lnBefore.onchange = () => { ln.beforeMin = lnBefore.value === '' ? null : Number(lnBefore.value); save(); rerender(); };
+  const anyOnGoogle = state.courses.some((c) => c.sessions.some((x) => x.googleId));
+  const lessonBlock = h('div', { class: 'sub-block' },
+    h('div', { class: 'sub-block-h' }, h('h3', {}, ic('cap', { size: 16 }), ' Ders hatırlatması')),
+    h('p', { class: 'muted small' }, 'Dersten önce dersin adı ve dersliğiyle bildirim gelir: "ELE 224 – Elektronik Devreler · Derslik: B-301 · 10:30". "Gitmedim" dediğin ders ve tatil günleri hatırlatılmaz.'),
+    h('div', { class: 'grid-3' }, field('Ne zaman', lnBefore)),
+    lnBefore.value === '' ? null : h('div', {}, lnGoogle.el,
+      h('p', { class: 'muted small' }, anyOnGoogle
+        ? 'Ders programın Google Takvim\'de; telefonun takvim uygulaması da Vazifedar kapalıyken aynı sürede hatırlatır.'
+        : 'Ders programını Dersler sayfasından Google Takvim\'e aktarırsan telefonun takvimi de Vazifedar kapalıyken hatırlatır.')));
+
   return section('hatirlatma', 'bell', 'Hatırlatmalar', [
     permRow,
+    lessonBlock,
     h('div', { class: 'sub-block' },
       h('div', { class: 'sub-block-h' }, h('h3', {}, ic('bag', { size: 16 }), ' Unutma notları ve yarının çantası'), on.el),
       h('p', { class: 'muted small' }, 'Bir derse ya da plana iğnelediğin notlar önceki akşam Bugün ekranında "Yarının çantası" olarak çıkar.'),
@@ -436,16 +455,8 @@ function remindersSection(rerender) {
 // ---------------------------------------------------------------------------
 // Namaz vakitleri
 // ---------------------------------------------------------------------------
-function prayerSection(rerender) {
-  const p = state.settings.prayer;
-  const save = (re = true) => { commit('settings'); if (re) rerender(); };
-  const on = toggle(!!p.enabled, (v) => { p.enabled = v; save(); }, 'Göster');
-  if (!p.enabled) {
-    return section('namaz', 'moon', 'Namaz vakitleri', [
-      h('p', { class: 'muted small' }, 'Açınca vakitler Bugün ekranında, kadranda ve haftalık takvimde görünür; istersen vakit girerken hatırlatır.'),
-    ], { right: on.el });
-  }
-
+// Şehir seçimi ve "Konumumu kullan" düğmesi (namaz bölümü, açıkken ve yalnız cuma hatırlatmasında)
+function placeControls(p, save) {
   const custom = !ILLER.some(([n]) => n === p.city);
   const city = h('select', {},
     custom ? h('option', { value: '__custom' }, p.city || 'Konumum') : null,
@@ -471,6 +482,40 @@ function prayerSection(rerender) {
       }, { timeout: 15000, maximumAge: 600000 });
     },
   }, ic('pin', { size: 15 }), ' Konumumu kullan');
+  return [field('Şehir', city), geo];
+}
+
+// Bugün cumaysa bugün, değilse sıradaki cuma
+function nextFriday(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  while (x.getDay() !== 5) x.setDate(x.getDate() + 1);
+  return x;
+}
+
+function prayerSection(rerender) {
+  const p = state.settings.prayer;
+  const save = (re = true) => { commit('settings'); if (re) rerender(); };
+  const on = toggle(!!p.enabled, (v) => { p.enabled = v; save(); }, 'Göster');
+
+  // Cuma namazı hatırlatması: yalnız cuma, öğle (cuma) vaktinden önce; vakitler gizliyken de çalışır
+  const fri = h('select', {}, [['', 'Kapalı'], ['0', 'Vakit girince'], ['15', '15 dk önce'], ['30', '30 dk önce'], ['45', '45 dk önce'], ['60', '1 saat önce'], ['90', '1,5 saat önce']]
+    .map(([v, l]) => h('option', { value: v }, l)));
+  fri.value = p.fridayMin === null || p.fridayMin === undefined ? '' : String(p.fridayMin);
+  fri.onchange = () => { p.fridayMin = fri.value === '' ? null : Number(fri.value); save(); };
+  const friCuma = timesFor(nextFriday(new Date())).ogle;
+  const friField = field('Cuma namazı hatırlatması', fri, fri.value === ''
+    ? 'Yalnız cuma günleri, cuma vaktinden önce bildirim gönderir'
+    : `Bu cuma vakit ${timeStr(friCuma)} (${p.city || 'konumun'})${p.enabled && p.notifyMin !== null && p.notifyMin !== undefined && (p.notifyIds || []).includes('ogle') ? '; cuma günü öğle hatırlatmasının yerine geçer' : ''}`);
+
+  if (!p.enabled) {
+    return section('namaz', 'moon', 'Namaz vakitleri', [
+      h('p', { class: 'muted small' }, 'Açınca vakitler Bugün ekranında, kadranda ve haftalık takvimde görünür; istersen vakit girerken hatırlatır. Vakitleri göstermeden yalnız cuma hatırlatması da açabilirsin.'),
+      friField,
+      fri.value === '' ? null : h('div', { class: 'row grow' }, ...placeControls(p, save)),
+    ], { right: on.el });
+  }
+
+  const [city, geo] = placeControls(p, save);
 
   const now = new Date();
   const t = timesFor(now);
@@ -506,11 +551,12 @@ function prayerSection(rerender) {
   const anyOff = VAKITLER.some((v) => Number(p.offsets?.[v.id]));
 
   return section('namaz', 'moon', 'Namaz vakitleri', [
-    h('div', { class: 'row grow' }, field('Şehir', city), geo),
+    h('div', { class: 'row grow' }, city, geo),
     preview,
     h('div', { class: 'row gap-l' }, chk('onDial', 'Bugün kadranında göster'), chk('inWeek', 'Haftalık takvimde göster')),
     field('Hatırlatma', rem, 'Vazifedar açıkken bildirim gönderir'),
     which ? field('Hangi vakitlerde', which) : null,
+    friField,
     h('details', { class: 'help', open: anyOff || null },
       h('summary', {}, 'İnce ayar (dakika)'),
       h('p', { class: 'muted small' }, 'Vakitler Diyanet yöntemiyle (İmsak 18°, Yatsı 17°, Diyanet temkinleri) bu cihazda hesaplanır; internet gerekmez. Diyanet\'in yayımladığı takvimle bir iki dakika fark görürsen ilgili vakte + ya da − dakika ekle.'),

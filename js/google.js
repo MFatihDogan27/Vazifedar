@@ -461,6 +461,14 @@ function taskBody(t) {
   return body;
 }
 
+// Ders hatırlatması Google'da da olsun: Vazifedar kapalıyken telefonun takvimi hatırlatır
+function lessonReminders() {
+  const ln = state.settings.lessonNotify || {};
+  const min = ln.beforeMin;
+  if (ln.google === false || min === null || min === undefined || min === '') return { useDefault: false, overrides: [] };
+  return { useDefault: false, overrides: [{ method: 'popup', minutes: Number(min) }] };
+}
+
 function courseBody(c, s) {
   const { start, end } = state.term;
   if (!start || !end || !s.start || !s.end || !s.day) return null;
@@ -485,7 +493,7 @@ function courseBody(c, s) {
     recurrence,
     status: 'confirmed',
     colorId: '9',
-    reminders: { useDefault: false, overrides: [] },
+    reminders: lessonReminders(),
     extendedProperties: { private: { vazifedarKind: 'ders', vazifedarCourse: c.id, vazifedarSession: s.id } },
   };
 }

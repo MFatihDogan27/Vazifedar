@@ -75,6 +75,7 @@ function defaultState() {
         enabled: true, city: 'Ankara', lat: 39.9334, lng: 32.8597,
         onDial: true, inWeek: true,
         notifyMin: null, notifyIds: ['imsak', 'ogle', 'ikindi', 'aksam', 'yatsi'],
+        fridayMin: null,    // cuma namazı hatırlatması: cuma vaktinden kaç dk önce (null: kapalı)
         offsets: {},
       },
       pins: {
@@ -82,6 +83,10 @@ function defaultState() {
         notify: true,
         notifyAt: '21:00',  // akşam çanta bildirimi
         beforeMin: 60,      // dersten/plandan önce hatırlat (null: kapalı)
+      },
+      lessonNotify: {
+        beforeMin: 10,      // dersten önce adı ve dersliğiyle bildirim (null: kapalı)
+        google: true,       // Google Takvim'e aktarılan ders programına da aynı hatırlatmayı koy
       },
     },
   };
@@ -94,6 +99,7 @@ function migrate(s) {
   out.settings.prayer = { ...d.settings.prayer, ...(s.settings?.prayer || {}) };
   out.settings.prayer.offsets = { ...(out.settings.prayer.offsets || {}) };
   out.settings.pins = { ...d.settings.pins, ...(s.settings?.pins || {}) };
+  out.settings.lessonNotify = { ...d.settings.lessonNotify, ...(s.settings?.lessonNotify || {}) };
   // Kayıt varsa bu kullanıcı yeni değil: ilk açılış kurulumunu gösterme
   if (s.settings && s.settings.onboarded === undefined) out.settings.onboarded = true;
   out.taskSeries = Array.isArray(out.taskSeries) ? out.taskSeries : [];

@@ -69,7 +69,7 @@ Her şey yalnız bu tarayıcıda durur. Tarayıcı verisi silinirse ya da telefo
 **Ayarlar**'ın en üstündeki halka neyin eksik kaldığını gösterir (ör. "2/4") ve eksik olanın yanındaki düğme onu oradan çözer. Ayrıca bak:
 
 - **Kategoriler**: Hazır gelen plan türleri Sınav, Konser, Halısaha, Arkadaşlar, Roket takımı, Görev zamanı ve Diğer. Sana uymayanları değiştir ya da sil, kendi türlerini ekle (renk, ikon, varsayılan süre, hatırlatma). Görev türleri de buradan değişir.
-- **Hatırlatmalar**: Bildirimlere izin ver. Yarının çantasının ve akşam bildiriminin saatleri de burada.
+- **Hatırlatmalar**: Bildirimlere izin ver. Dersten kaç dakika önce (adı ve dersliğiyle) hatırlatılacağı, yarının çantasının ve akşam bildiriminin saatleri de burada.
 - **Namaz vakitleri**: Şehrini seç (varsayılan Ankara) ya da istemiyorsan kapat.
 - **Görünüm**: Renk temaları (Firuze, Mercan, Kobalt, Safran, Mürdüm, Mürekkep ya da kendi rengin) ve açık/koyu mod.
 - **Gün saatleri**: Takvimde hangi saatlerin görüneceği ve görevlerin hangi saatler arasına yerleştirileceği.
@@ -240,8 +240,10 @@ Büyüteç, `Ctrl+K` ya da `F` arama penceresini açar. Planlarda, görevlerde, 
 ### Hatırlatmalar
 
 - Vazifedar açıkken (arka planda olsa da) sistem bildirimi gelir. İzin vermezsen uygulama içinde uyarır.
-- **Uygulama tamamen kapalıyken Vazifedar bildirim gönderemez.** Telefonda kapalıyken de hatırlatma almak için Google Takvim eşitlemesini aç: planların ve ödev teslimlerinin hatırlatmaları Google'a da gider, telefonun takvim uygulaması hatırlatır. Unutma notları ve namaz vakti hatırlatmaları yalnız Vazifedar açıkken gelir.
+- **Uygulama tamamen kapalıyken Vazifedar bildirim gönderemez.** Telefonda kapalıyken de hatırlatma almak için Google Takvim eşitlemesini aç: planların ve ödev teslimlerinin hatırlatmaları Google'a da gider, telefonun takvim uygulaması hatırlatır. Unutma notları, namaz ve cuma hatırlatmaları yalnız Vazifedar açıkken gelir.
 - Namaz vakti hatırlatması (vakit girince ya da 5–45 dk önce) Ayarlar → Namaz vakitleri'nden açılır.
+- **Ders hatırlatması**: Her dersten önce (varsayılan 10 dk) dersin adı ve dersliğiyle bildirim gelir: "ELE 224 – Elektronik Devreler · Derslik: B-301 · 10:30, 10 dk sonra". "Gitmedim" dediğin dersler ve tatil günleri hatırlatılmaz. Süreyi Ayarlar → Hatırlatmalar'dan değiştir ya da kapat. Ders programını Google Takvim'e aktardıysan aynı hatırlatma oradaki derslere de konur; telefonun takvimi Vazifedar kapalıyken de hatırlatır (istemezsen "Google Takvim'deki derslere de koy"u kapat).
+- **Cuma namazı hatırlatması**: Yalnız cuma günleri, cuma vaktinden (öğle vakti) önce bildirim gelir: vakit girince ya da 15 dk–1,5 saat önce. Ayarlar → Namaz vakitleri'nden açılır; vakitleri göstermeyi kapatsan da çalışır. Öğle hatırlatman da açıksa cuma günü onun yerine bu gelir. Yalnız Vazifedar açıkken (ya da arka plandayken) gelir.
 
 ### Klavye kısayolları (bilgisayarda)
 
