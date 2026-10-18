@@ -249,8 +249,13 @@ export function occurrenceTopics(c, date) {
 // ---------------------------------------------------------------------------
 // Ders formundaki konu düzenleyici. c: formun üzerinde çalıştığı kopya (c.topics doğrudan değişir).
 // ---------------------------------------------------------------------------
-// Ders kodunun ön ekine göre ABYS program kimliği (mufredat/guncelle.mjs'teki ONEK ile aynı); bilinmiyorsa EEM
-const ABYS_PROG = { BIL: 5, ELE: 7, END: 9, YAP: 176, MAK: 178, BMM: 180, MBN: 182 };
+// Ders kodunun ön ekine göre ABYS program kimliği (mufredat/guncelle.mjs'teki ONEK ile aynı); bilinmiyorsa EEM.
+// Ders sayfası programa bağlı: başka bölümün verdiği ortak derste bağlantı açılmayabilir.
+const ABYS_PROG = {
+  BIL: 5, FIZ: 5, TUR: 5, AIT: 5, OEG: 5, IYD: 5, ELE: 7, MAT: 7, KIM: 7, END: 9, YAP: 176, MAK: 178, BMM: 180, MBN: 182,
+  TDE: 185, TAR: 187, IDE: 189, PSI: 191, ISL: 194, ING: 194, IKT: 196, UGI: 200, UGIR: 200, SUI: 204, YBS: 65921,
+  ICT: 207, EUT: 209, GIT: 211, GRT: 211, BLT: 211, MIM: 213, SAT: 213, HUK: 216, MTA: 216, TIP: 219,
+};
 export function abysUrl(code) {
   const raw = String(code || '').toLocaleUpperCase('tr').replace(/[\s-]+/g, '');
   const p = ABYS_PROG[foldCode(code).match(/^[A-Z]+/)?.[0]] || 7;
