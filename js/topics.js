@@ -249,10 +249,21 @@ export function occurrenceTopics(c, date) {
 // ---------------------------------------------------------------------------
 // Ders formundaki konu düzenleyici. c: formun üzerinde çalıştığı kopya (c.topics doğrudan değişir).
 // ---------------------------------------------------------------------------
+// Ders kodunun ön ekine göre ABYS program kimliği (mufredat/guncelle.mjs'teki ONEK ile aynı); bilinmiyorsa EEM
+const ABYS_PROG = { BIL: 5, ELE: 7, END: 9, YAP: 176, MAK: 178, BMM: 180, MBN: 182 };
+export function abysUrl(code) {
+  const raw = String(code || '').toLocaleUpperCase('tr').replace(/[\s-]+/g, '');
+  const p = ABYS_PROG[foldCode(code).match(/^[A-Z]+/)?.[0]] || 7;
+  return `https://abys.etu.edu.tr/public/lesson.jsp?program=${p}&lang=tr&lesson=${encodeURIComponent(raw)}`;
+}
+
 export function topicsEditor(c, { code, name, isNew }) {
   const list = h('ol', { class: 'tp-edit' });
   const hint = h('span', { class: 'field-hint' });
-  const fetchBtn = h('button', { type: 'button', class: 'btn small ghost', hidden: true });
+  // Ders kodu alanının yanındaki düğme (forms.js yerleştirir): müfredattan konuları getirir/yeniler
+  const fetchBtn = h('button', { type: 'button', class: 'btn small ghost tp-fetch' }, 'İçeriği getir');
+  // Müfredatta yoksa okulun ABYS ders sayfası (haftalık planı oradan kopyalayıp yapıştırmak için)
+  const siteLink = h('a', { class: 'linkish tp-site', target: '_blank', rel: 'noopener', hidden: true }, 'Okulun ders sayfasını aç ↗');
   let lesson = null;
 
   // Yapıştır: ders sayfasındaki haftalık planı kopyala, buraya bırak; konular haftalarına yerleşir
@@ -296,17 +307,18 @@ export function topicsEditor(c, { code, name, isNew }) {
     }));
   };
 
-  const setFound = (l) => {
-    lesson = l;
-    fetchBtn.hidden = !l;
-    if (l) fetchBtn.textContent = c.topics?.length ? 'Okulun müfredatından yenile' : `Okulun müfredatından getir (${l.konular.length} konu)`;
-  };
+  const setFound = (l) => { lesson = l; };
 
+  // Düğmeye basınca kod kutusu odağı kaybeder, "change" de gelir: aynı kod için ikinci kez bakma
+  let fetchedCode = '';
   const lookup = async (auto) => {
+    if (auto && fetchedCode && foldCode(code.value) === fetchedCode) return;
+    if (foldCode(code.value) && !(await loadCatalog())) { hint.textContent = 'Müfredat dosyası indirilemedi; internet gelince "İçeriği getir"e bas.'; return; }
     const l = await findLesson(code.value);
+    if (auto && fetchedCode && foldCode(code.value) === fetchedCode) return;
     setFound(l);
-    if (!l) { hint.textContent = foldCode(code.value) ? 'Bu kod okulun müfredatında bulunamadı. Ders sayfasındaki haftalık planı kopyalayıp "Yapıştır"a bırakabilir ya da konuları tek tek ekleyebilirsin.' : 'Ders kodunu yazınca konular okulun müfredatından gelir. Haftalık planı kopyalayıp "Yapıştır"a da bırakabilirsin.'; return; }
-    hint.textContent = `Okulun müfredatında var: ${l.kod} ${l.ad}.`;
+    if (!l) { hint.textContent = foldCode(code.value) ? 'Bu kod okulun müfredatında bulunamadı. Ders sayfasındaki haftalık planı kopyalayıp "Yapıştır"a bırakabilir ya da konuları tek tek ekleyebilirsin.' : 'Ders kodunu yazıp "İçeriği getir"e basınca konular okulun müfredatından gelir. Haftalık planı kopyalayıp "Yapıştır"a da bırakabilirsin.'; return; }
+    hint.textContent = `Okulun müfredatında var: ${l.kod} ${l.ad}.${c.topics?.length ? '' : ' Konuları eklemek için "İçeriği getir"e bas.'}`;
     if (auto && isNew && !c.topics?.length) {
       c.topics = topicsFromLesson(l);
       if (!name.value.trim() && l.ad) name.value = l.ad;
@@ -315,14 +327,41 @@ export function topicsEditor(c, { code, name, isNew }) {
     }
   };
 
-  fetchBtn.onclick = () => {
-    if (!lesson) return;
-    const had = c.topics?.length;
-    c.topics = mergeFromLesson(c.topics || [], lesson);
-    hint.textContent = had ? 'Konular müfredattan yenilendi; bitirdiklerin işaretli kaldı.' : `${lesson.konular.length} konu eklendi.`;
-    setFound(lesson); draw();
+  const notFound = () => {
+    hint.textContent = 'Bu ders okulun müfredat dosyasında yok. Okulun sitesi seçmeli derslerin çoğunun haftalık planını yayımlamıyor; dersin izlencesindeki (syllabus) haftalık planı kopyalayıp açılan kutuya yapıştırabilirsin.';
+    siteLink.href = abysUrl(code.value);
+    siteLink.hidden = false;
+    if (pasteBox.hidden) { pasteBox.hidden = false; pasteBtn.hidden = true; showParsed(); }
+  };
+
+  fetchBtn.onclick = async () => {
+    if (!foldCode(code.value)) { hint.textContent = 'Önce ders kodunu yaz (ör. ELE 224), sonra "İçeriği getir"e bas.'; code.focus(); return; }
+    fetchedCode = foldCode(code.value);
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = 'Getiriliyor…';
+    try {
+      const d = await loadCatalog();
+      if (!d) { hint.textContent = 'Müfredat dosyası indirilemedi. İnternet bağlantını kontrol edip yeniden dene.'; return; }
+      const l = d.dersler[foldCode(code.value)] || null;
+      setFound(l);
+      if (!l) { notFound(); return; }
+      siteLink.hidden = true;
+      const had = c.topics?.length;
+      c.topics = mergeFromLesson(c.topics || [], l);
+      if (!name.value.trim() && l.ad) name.value = l.ad;
+      hint.textContent = had
+        ? `Konular okulun müfredatından getirildi (${l.kod} ${l.ad}, ${l.konular.length} konu); bitirdiklerin işaretli kaldı. Kaydetmeyi unutma.`
+        : `${l.konular.length} konu okulun müfredatından eklendi (${l.kod} ${l.ad}). Kaydetmeyi unutma.`;
+      draw();
+    } finally {
+      fetchBtn.disabled = false;
+      fetchBtn.textContent = 'İçeriği getir';
+    }
   };
   code.addEventListener('change', () => lookup(true));
+  code.addEventListener('input', () => { siteLink.hidden = true; fetchedCode = ''; });
+  // Kod kutusunda Enter = İçeriği getir (form gönderilmesin)
+  code.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fetchBtn.click(); } });
 
   draw();
   lookup(false);
@@ -338,11 +377,11 @@ export function topicsEditor(c, { code, name, isNew }) {
         draw();
         list.lastElementChild?.querySelector('input')?.focus();
       } }, '+ Konu ekle'),
-      pasteBtn,
-      fetchBtn),
+      pasteBtn),
     pasteBox,
-    hint);
+    hint,
+    siteLink);
   // Kaydetmeden önce boş başlıklı konuları at
   const clean = () => { if (c.topics) c.topics = c.topics.filter((t) => t.title.trim()).map((t) => ({ ...t, title: t.title.trim() })); };
-  return { el, clean };
+  return { el, clean, fetchBtn };
 }

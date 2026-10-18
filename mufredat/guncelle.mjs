@@ -118,7 +118,8 @@ async function crawl() {
     if (!prog) continue;
     programs[prog] = ad;
     const ic = await get(`https://www.etu.edu.tr/tr/bolum/${slug}/ders-icerikleri`);
-    if (ic) for (const m of txt(ic).replace(/\s+/g, ' ').matchAll(/(?:^|\s)([A-ZÇĞİÖŞÜ]{2,4}) ?(\d{3}L?)(?=\s)/g)) codes.add(m[1] + m[2]);
+    // Kodun ardından virgül, iki nokta ya da "/" gelebilir ("ELE 401, ELE 402", "ELE 412 L", "ELE 425 / BİL361")
+    if (ic) for (const m of txt(ic).replace(/\s+/g, ' ').matchAll(/(?:^|[\s,;/(])([A-ZÇĞİÖŞÜ]{2,4}) ?(\d{3})(?: ?(L))?(?![0-9A-Za-zÇĞİÖŞÜçğıöşü])/g)) codes.add(m[1] + m[2] + (m[3] || ''));
     for (const c of codes) {
       const list = jobs.get(c) || [];
       if (ONEK[c.match(/^\D+/)?.[0]] === prog) list.unshift(prog); else list.push(prog);

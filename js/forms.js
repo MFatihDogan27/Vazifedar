@@ -500,7 +500,7 @@ export function openCourseForm(courseId, { focus = '' } = {}) {
   const topicsEd = topicsEditor(c, { code, name, isNew: !existing });
 
   const body = h('form', { class: 'form', onsubmit: (e) => e.preventDefault() },
-    h('div', { class: 'grid-2' }, field('Ders adı', name), field('Ders kodu', code)),
+    h('div', { class: 'grid-2' }, field('Ders adı', name), field('Ders kodu', h('div', { class: 'code-fetch' }, code, topicsEd.fetchBtn))),
     h('div', { class: 'grid-2' }, field('Öğretim üyesi', instructor), field('Renk', swatches)),
     field('Haftalık oturumlar', h('div', {}, sessWrap,
       h('button', { type: 'button', class: 'btn small ghost', onclick: () => { const last = c.sessions[c.sessions.length - 1]; c.sessions.push({ id: uid(), day: Math.min(7, (last?.day || 1) + 2), start: last?.start || '09:30', end: last?.end || '11:20', location: last?.location || '', type: 'Teori' }); renderSessions(); } }, '+ Oturum ekle'))),
