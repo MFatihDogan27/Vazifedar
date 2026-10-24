@@ -802,6 +802,24 @@ button.tc:hover { border-color: var(--ink); }
   .mo-chip .mo-time { display: none; }
   .week-stats div { min-width: 0; }
 }
+/* Telefonda Bugün: geri sayım kartları yan yana, haftalık sayılar satır satır (uzun gün adı taşmasın) */
+@media (max-width: 560px) {
+  .today-side > .cd-blocks { grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* bilet, skorbord ve optik form yarım genişliğe sığmaz: onlardan biri varsa kartlar alt alta */
+  .today-side > .cd-blocks:has(.tc-bilet, .tc-skor, .tc-optik) { grid-template-columns: 1fr; }
+  .today-side > .cd-blocks .tcard { min-height: 128px; padding: 14px 14px 12px; border-radius: 20px; }
+  .today-side > .cd-blocks .tc-n { font-size: 40px; }
+  .today-side > .cd-blocks .tc-t { font-size: 14.5px; padding-top: 8px; }
+  .today-side > .cd-blocks .tc-s { font-size: 12.5px; }
+  .today-side > .cd-blocks .tc-k { font-size: 12px; }
+  .week-body { gap: 18px; }
+  .week-stats { flex-direction: column; gap: 6px; }
+  .week-stats div { flex-direction: row; align-items: baseline; gap: 10px; padding: 9px 14px; }
+  .week-stats b { font-size: 17px; flex: none; }
+  .week-stats span { font-size: 13px; }
+  .w-legend { grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+  .w-legend li { font-size: 13px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }

@@ -106,7 +106,7 @@ function renderToolbar() {
           h('button', { class: 'icon-btn', 'aria-label': 'Önceki', onclick: () => { ui.anchor = shiftAnchor(ui.mode, ui.anchor, -1); render(); } }, '‹'),
           h('button', { class: 'icon-btn', 'aria-label': 'Sonraki', onclick: () => { ui.anchor = shiftAnchor(ui.mode, ui.anchor, 1); render(); } }, '›')),
         h('h1', { class: 'tb-title' }, calendarTitle(ui.mode, ui.anchor))),
-      h('div', { class: 'tb-right' }, seg, h('button', { class: 'btn primary', onclick: () => openEventForm({}) }, '+ Plan ekle')));
+      h('div', { class: 'tb-right' }, seg, h('button', { class: 'btn primary tb-add', 'aria-label': 'Plan ekle', title: 'Plan ekle', onclick: () => openEventForm({}) }, '+', h('span', { class: 'tb-add-tx' }, ' Plan ekle'))));
   } else if (ui.view === 'tasks') {
     const open = state.tasks.filter((t) => !t.done).length;
     toolbarEl.replaceChildren(
@@ -133,7 +133,7 @@ function renderMain() {
   toolbarEl.hidden = ui.view === 'today';
   qaSlot.classList.toggle('off', ui.view === 'tasks');
   if (ui.view === 'calendar') {
-    if (ui.mode === 'month') renderMonth(viewEl, ui.anchor, { onDayOpen: (d, ev) => zoom('in', ev, () => { ui.anchor = d; ui.mode = 'week'; saveUi(); render(); }) });
+    if (ui.mode === 'month') renderMonth(viewEl, ui.anchor, { onDayOpen: (d, ev) => zoom('in', ev, () => { ui.anchor = d; ui.mode = 'week'; saveUi(); render(); }), onMonth: (d) => { ui.anchor = d; saveUi(); render(); } });
     else if (ui.mode === 'agenda') renderAgenda(viewEl, ui.anchor);
     else renderWeek(viewEl, ui.anchor);
   } else if (ui.view === 'today') renderToday(viewEl, { onWeek: () => { ui.view = 'calendar'; ui.mode = 'week'; ui.anchor = new Date(); forgetWeekPos(); saveUi(); render(); }, onCourses: () => setView('courses'), onTasks: () => setView('tasks'), onJournal: () => setView('defter') });
@@ -352,7 +352,7 @@ function onReturn() {
 }
 window.addEventListener('focus', onReturn);
 // Telefon ⇄ geniş ekran (ya da telefon yan çevrilince): haftalık görünüm sığdığı düzende yeniden çizilsin
-window.matchMedia?.(NARROW_WEEK).addEventListener?.('change', () => { if ((ui.view === 'calendar' && ui.mode === 'week') || ui.view === 'courses') renderMain(); });
+window.matchMedia?.(NARROW_WEEK).addEventListener?.('change', () => { if ((ui.view === 'calendar' && ui.mode !== 'agenda') || ui.view === 'courses') renderMain(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') onReturn(); });
 window.addEventListener('pageshow', (e) => { if (e.persisted) onReturn(); });
 
