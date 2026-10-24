@@ -8,7 +8,7 @@ import { renderCourses } from './courses.js';
 import { renderSettings } from './settings.js';
 import { renderToday } from './today.js';
 import { renderTerm } from './term.js';
-import { renderJournal, archiveTick, focusDay, selectedDay } from './journal.js';
+import { renderJournal, archiveTick, focusDay, selectedDay, writingJournal, flushJournal } from './journal.js';
 import { openNoteForm } from './notes.js';
 import { injectTextureCSS } from './themes.js';
 import { openEventForm, openTaskForm } from './forms.js';
@@ -169,8 +169,47 @@ function applyTheme() { applyPalette(state.settings); }
 watchSystemTheme(() => state.settings);
 
 function render() {
+  renderHeld = false;
   renderNav(); renderToolbar(); renderMain(); renderSync();
+  // Yazı kutusu bu çizimle kalktıysa (başka bölüme geçildi) bekleyen defter eşitlemesini başlat
+  releaseJournalSync();
 }
+
+// ---------- Yazarken yeniden çizmeme ----------
+// Defterde yazarken: yazı her kayıtta Drive'a gitmez (yazı kutusundan çıkınca, başka bölüme geçince
+// ya da uygulama arka plana alınınca gider). Arka plandan gelen değişiklikler de (eşitleme sonucu,
+// gün dönümü arşivi) sayfayı yeniden çizmez; çizim yazı kutusundan çıkınca yapılır.
+// Başka bir yazı alanındayken de eşitleme ve arşiv kaynaklı yeniden çizim bekletilir.
+const BG_REASONS = new Set(['sync', 'cloud', 'archive']);
+const TYPING = 'textarea, select, input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=range]):not([type=color])';
+const typingInView = () => { const ae = document.activeElement; return !!ae && viewEl.contains(ae) && ae.matches(TYPING); };
+let journalDirty = false; // buluta gitmemiş defter yazısı var
+let renderHeld = false;   // yazarken ertelenmiş yeniden çizim var
+function releaseJournalSync() {
+  if (!journalDirty || writingJournal()) return;
+  journalDirty = false;
+  G.scheduleCloud();
+}
+function releaseHeld() {
+  releaseJournalSync();
+  if (!renderHeld || writingJournal() || typingInView()) return;
+  const se = document.scrollingElement, top = viewEl.scrollTop, wtop = se?.scrollTop;
+  render();
+  viewEl.scrollTop = top;
+  if (se && wtop !== undefined) se.scrollTop = wtop;
+}
+// Odak bir yazı kutusundan çıkınca. Kısa bekleme: dokunulan düğmenin tıklaması sayfa yeniden
+// çizilmeden önce işlensin (yoksa tıklanan öğe çizimle kalkar, tıklama kaybolur).
+document.addEventListener('focusout', () => setTimeout(releaseHeld, 250));
+// Uygulama arka plana alınınca / kapanırken: bekleyen defter yazısını kaydet ve hemen eşitle
+function flushOnHide() {
+  flushJournal();
+  if (!journalDirty) return;
+  journalDirty = false;
+  if (state.settings.googleConnected && G.hasToken()) G.sync({ cloudOnly: true });
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushOnHide(); });
+window.addEventListener('pagehide', flushOnHide);
 
 // ---------- Olaylar ----------
 subscribe((reason, opts) => {
@@ -178,12 +217,16 @@ subscribe((reason, opts) => {
   if (opts?.pushGoogle && state.settings.googleConnected) {
     if (G.hasToken()) G.schedulePush();
   }
-  // Görev, ders, not, defter değişiklikleri Google Drive üzerinden diğer cihazlara
+  // Defter yazısı yalnız kaydedilir; sayfa yeniden çizilmez. Yazarken buluta gönderilmez
+  // (her kayıtta eşitleme yapılırdı), yazı kutusundan çıkınca gönderilir.
+  if (reason === 'journal') { journalDirty = true; releaseJournalSync(); return; }
+  // Görev, ders, not değişiklikleri Google Drive üzerinden diğer cihazlara
   if (CLOUD_REASONS.has(reason)) G.scheduleCloud();
   // Ayarlar sayfasında yazarken sayfa yeniden çizilmesin
   if (reason === 'settings' && ui.view === 'settings') { renderSync(); return; }
-  // Defter yazısı yalnız kaydedilir; yazarken sayfa yeniden çizilmez
-  if (reason === 'journal') return;
+  // Yazarken arka plandan gelen değişiklik sayfayı yeniden çizmesin (yazı kutusu baştan kurulur,
+  // imleç ve klavye kaybolur); çizim yazmayı bırakınca yapılır
+  if (writingJournal() || (BG_REASONS.has(reason) && typingInView())) { renderHeld = true; renderNav(); renderSync(); return; }
   render();
 });
 G.onStatus((st) => renderSync(st));

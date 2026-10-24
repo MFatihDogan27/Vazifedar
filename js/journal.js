@@ -74,14 +74,33 @@ export function setJournal(k, text) {
   commit('journal'); // sayfa yeniden çizilmez, yalnız kaydedilir
 }
 
+// Defter yazı kutuları. Biri odaktayken app.js arka plandan gelen yeniden çizimleri ve Drive
+// eşitlemesini bekletir (yazarken sayfa baştan çizilip imleç kaybolmasın).
+export const JOURNAL_BOX = 'textarea.dj-text, textarea.jp-text';
+export const writingJournal = () => !!document.activeElement?.matches?.(JOURNAL_BOX);
+
+// Henüz kaydedilmemiş (500 ms bekleyen) yazı: sayfa gizlenirken hemen kaydedilsin
+let pendingSave = null;
+export function flushJournal() { pendingSave?.(); }
+
 function autosave(ta, k, status, onSaved) {
-  let timer;
+  let timer, dirty = false;
+  const save = () => {
+    clearTimeout(timer);
+    if (pendingSave === save) pendingSave = null;
+    if (!dirty && ta.value === journalText(k)) return;
+    dirty = false;
+    if (ta.value !== journalText(k)) { setJournal(k, ta.value); onSaved?.(ta.value); }
+    status.textContent = ta.value.trim() ? 'Kaydedildi' : '';
+  };
   ta.addEventListener('input', () => {
     status.textContent = 'Yazılıyor…';
+    dirty = true;
     clearTimeout(timer);
-    timer = setTimeout(() => { setJournal(k, ta.value); status.textContent = ta.value.trim() ? 'Kaydedildi' : ''; onSaved?.(ta.value); }, 500);
+    timer = setTimeout(save, 500);
+    pendingSave = save;
   });
-  ta.addEventListener('blur', () => { clearTimeout(timer); if (ta.value !== journalText(k)) { setJournal(k, ta.value); status.textContent = ta.value.trim() ? 'Kaydedildi' : ''; onSaved?.(ta.value); } });
+  ta.addEventListener('blur', save);
 }
 
 // Bugün ekranındaki akşam kartının altına: defterden bir satır
