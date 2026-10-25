@@ -14,8 +14,8 @@ const DRIVE = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 
 const LISTS = ['courses', 'tasks', 'taskSeries', 'notes', 'categories', 'taskCategories']; // id'li diziler
-const MAPS = ['journal', 'archive'];                                          // tarih → kayıt
-const SINGLES = ['term'];                                                     // tek nesne
+const MAPS = ['journal', 'archive', 'sleep'];                                 // tarih → kayıt
+const SINGLES = ['term', 'sleepDef'];                                         // tek nesne
 export const CLOUD_KEYS = [...LISTS, ...MAPS, ...SINGLES];
 
 const str = (v) => (v === undefined ? undefined : JSON.stringify(v));
@@ -127,6 +127,10 @@ function mergeMap(key, L = {}, R = {}, B = {}, hasBase) {
 }
 export function merge(local, remote, base) {
   const hasBase = !!base;
+  // Bulut dosyasında bir alan hiç yoksa (o alanı bilmeyen eski bir sürüm yazmış) buradakini koru;
+  // yoksa tabanla karşılaştırınca "bulutta silinmiş" sanılıp buradan da silinirdi.
+  remote = { ...remote };
+  for (const k of CLOUD_KEYS) if (!(k in remote)) remote[k] = local[k];
   const out = {};
   for (const k of LISTS) out[k] = mergeList(k, local[k], remote[k], base?.[k], hasBase);
   for (const k of MAPS) out[k] = mergeMap(k, local[k], remote[k], base?.[k], hasBase);

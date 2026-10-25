@@ -5,6 +5,7 @@ import {
 } from './dates.js';
 import { expand, isRecurring } from './recurrence.js';
 import { iconKey } from './icons.js';
+import { nightsInRange } from './sleep.js';
 
 const KEY = 'vazifedar:v1';
 
@@ -35,6 +36,8 @@ function defaultState() {
     notes: [],      // derse / plana / güne bağlı "unutma" notları
     journal: {},    // 'YYYY-MM-DD' → { text, updatedAt } — defter
     archive: {},    // 'YYYY-MM-DD' → { segs, allDay } — kadran arşivi (gün bitince donar)
+    sleep: {},      // 'YYYY-MM-DD' → { wake, bed, updatedAt } — o güne özel uyku saatleri (sleep.js)
+    sleepDef: { bed: '00:00', wake: '07:00' }, // varsayılan uyku
     categories: [
       { id: 'sinav', name: 'Sınav', color: '#E8553A', icon: 'exam', duration: 120, reminder: 1440 },
       { id: 'konser', name: 'Konser', color: '#7A4C8F', icon: 'music', duration: 180, reminder: 120 },
@@ -107,6 +110,13 @@ function migrate(s) {
   for (const n of out.notes) { n.checks = n.checks || {}; n.target = n.target || { type: 'date', date: '' }; }
   out.journal = out.journal && typeof out.journal === 'object' ? out.journal : {};
   out.archive = out.archive && typeof out.archive === 'object' ? out.archive : {};
+  out.sleep = out.sleep && typeof out.sleep === 'object' && !Array.isArray(out.sleep) ? out.sleep : {};
+  // Uyku saatleri yokken kadrandaki "uyku" dilimi takvimin görünen saatlerinden geliyordu: aynısıyla başla
+  if (!s.sleepDef || typeof s.sleepDef !== 'object') {
+    const p2 = (n) => String(n).padStart(2, '0');
+    const ds = Number(out.settings.dayStartHour ?? 7), de = Number(out.settings.dayEndHour ?? 24);
+    out.sleepDef = { bed: de >= 24 ? '00:00' : `${p2(de)}:00`, wake: `${p2(ds)}:00` };
+  }
   out.term = { ...d.term, ...(s.term || {}) };
   out.term.breaks = out.term.breaks || [];
   for (const c of out.courses) {
@@ -367,7 +377,8 @@ export function findFreeSlot(durationMin, after = new Date(), { days = 21 } = {}
   if (r) cursor = addMinutes(cursor, 15 - r);
   cursor.setSeconds(0, 0);
   const limit = addDays(startOfDay(after), days);
-  const busy = occurrencesInRange(startOfDay(after), limit).filter((o) => !o.allDay);
+  // Uyku saatleri de dolu sayılır (görev uykuya konmasın)
+  const busy = [...occurrencesInRange(startOfDay(after), limit).filter((o) => !o.allDay), ...nightsInRange(startOfDay(after), limit)];
   while (cursor < limit) {
     const day = startOfDay(cursor);
     const minOfDay = cursor.getHours() * 60 + cursor.getMinutes();

@@ -8,6 +8,7 @@ import {
   GUNLER, GUNLER_KISA, AYLAR, isoWeekday,
 } from './dates.js';
 import { ic } from './icons.js';
+import { sleepSpans, defaultSpans } from './sleep.js';
 import { termWeek } from './today.js';
 import { dayGroups, groupsCount, dayPinsBlock, allPinsPanel } from './notes.js';
 
@@ -126,7 +127,8 @@ const svgEl = (tag, attrs = {}, text) => {
   return el;
 };
 
-export function ring(segs, { big = false, thin = false } = {}) {
+// day: 'YYYY-MM-DD' verilirse uyku dilimi o günün uykusundan, verilmezse varsayılan uyku saatlerinden
+export function ring(segs, { big = false, thin = false, day = null } = {}) {
   const R = big ? 38 : thin ? 43 : 39, W = big ? 13 : thin ? 7 : 15;
   const ang = (m) => ((m / 1440) * 360 + 180) * Math.PI / 180;
   const P = (m, r) => [Math.sin(ang(m)) * r, -Math.cos(ang(m)) * r];
@@ -139,9 +141,7 @@ export function ring(segs, { big = false, thin = false } = {}) {
   const vb = big ? '-58 -58 116 116' : '-50 -50 100 100';
   const svg = svgEl('svg', { viewBox: vb, class: `ring ${big ? 'big' : ''} ${thin ? 'thin' : ''}`, 'aria-hidden': 'true' });
   svg.append(svgEl('circle', { r: R, class: 'rg-track', 'stroke-width': W }));
-  const sh = state.settings.dayStartHour ?? 7, eh = state.settings.dayEndHour ?? 24;
-  if (sh > 0) svg.append(svgEl('path', { d: arc(0, sh * 60, R), class: 'rg-night', 'stroke-width': W }));
-  if (eh < 24) svg.append(svgEl('path', { d: arc(eh * 60, 1440, R), class: 'rg-night', 'stroke-width': W }));
+  for (const sp of (day ? sleepSpans(day) : defaultSpans())) svg.append(svgEl('path', { d: arc(sp.a, sp.b, R), class: 'rg-night', 'stroke-width': W }));
   const trim = big ? 3 : 4;
   for (const s of [...segs].sort((x, y) => (y.b - y.a) - (x.b - x.a))) {
     const t = s.b - s.a > trim * 4 ? trim : 0;
@@ -234,7 +234,7 @@ export function renderJournal(root) {
       'aria-label': label, 'aria-pressed': String(k === ui.sel), title: label,
       onclick: () => { ui.sel = k; if (!inMonth) ui.month = startOfMonth(d); rerender(); },
     }, pul ? [stampFace(d, data, { past: k <= todayKey }), has ? postmark(d) : null]
-      : [ring(data.segs), h('span', { class: 'dj-num' }, d.getDate())],
+      : [ring(data.segs, { day: k }), h('span', { class: 'dj-num' }, d.getDate())],
     pc ? h('span', { class: 'dj-pin' }, ic('pin', { size: 11 }), pc) : null));
   }
   const shift = (n) => { ui.month = new Date(ms.getFullYear(), ms.getMonth() + n, 1); rerender(); };
@@ -316,7 +316,7 @@ function dayPage(k, { now, rerender }) {
         h('button', { class: 'icon-btn', 'aria-label': 'Sonraki gün', onclick: () => go(1) }, '›')),
       h('span', { class: 'dj-pw' }, isToday ? 'Bugün' : sameDay(d, addDays(now, -1)) ? 'Dün' : sameDay(d, addDays(now, 1)) ? 'Yarın' : '', tw ? `${isToday || sameDay(d, addDays(now, -1)) || sameDay(d, addDays(now, 1)) ? ' · ' : ''}Dönemin ${tw.n}. haftası` : '')),
     h('div', { class: 'dj-body' },
-      h('div', { class: 'dj-dialrow' }, h('div', { class: 'dj-bigring' }, ring(data.segs, { big: true })), segList),
+      h('div', { class: 'dj-dialrow' }, h('div', { class: 'dj-bigring' }, ring(data.segs, { big: true, day: k })), segList),
       data.frozen ? h('p', { class: 'dj-frozen muted small' }, 'Bu günün kadranı arşivde. ',
         h('button', { type: 'button', class: 'linkish', onclick: () => { redraw(k); toast('Kadran şimdiki takvimle yeniden çizildi'); } }, 'Takvimden yeniden çiz')) : null,
       pins, doneSec, writing));

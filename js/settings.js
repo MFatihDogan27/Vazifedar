@@ -11,6 +11,7 @@ import { VAKITLER, ILLER, timesFor } from './prayer.js';
 import { backupPanel, downloadBackup, backupStatus, onBackupChange, chooseFolder, ago } from './backup.js';
 import { appPanel, isStandalone } from './pwa.js';
 import { checkForUpdate, applyUpdate, updateStatus, onUpdateStatus, stampText } from './update.js';
+import { sleepDef, setSleepDef, openSleepPanel } from './sleep.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const svg = (tag, attrs = {}) => {
@@ -144,7 +145,8 @@ const SECTIONS = [
   } },
   { id: 'saatler', icon: 'clock', name: 'Gün saatleri', sum: () => {
     const s = state.settings;
-    return `Takvim ${pad2(s.dayStartHour)}–${pad2(s.dayEndHour)} · görev ${(s.freeSlotStart || '09:00').slice(0, 2)}–${(s.freeSlotEnd || '22:00').slice(0, 2)}`;
+    const sl = sleepDef();
+    return `Uyku ${sl.bed}–${sl.wake} · takvim ${pad2(s.dayStartHour)}–${pad2(s.dayEndHour)} · görev ${(s.freeSlotStart || '09:00').slice(0, 2)}–${(s.freeSlotEnd || '22:00').slice(0, 2)}`;
   } },
   { id: 'hatirlatma', icon: 'bell', name: 'Hatırlatmalar', sum: () => {
     const p = state.settings.pins;
@@ -377,6 +379,17 @@ function hoursSection() {
     s.freeSlotStart = fs.value || '09:00'; s.freeSlotEnd = fe.value || '22:00'; commit('settings'); ring.draw();
   };
   fs.onchange = updF; fe.onchange = updF;
+  // Varsayılan uyku (gün gün değişiklikler Uyku düzeni penceresinden ya da kadrandaki uyku diliminden)
+  const sl = sleepDef();
+  const sb = h('input', { type: 'time', value: sl.bed, step: 300 });
+  const sw = h('input', { type: 'time', value: sl.wake, step: 300 });
+  const updS = () => {
+    if (!sb.value || !sw.value) return;
+    const b = Number(sb.value.slice(0, 2)) * 60 + Number(sb.value.slice(3)), w = Number(sw.value.slice(0, 2)) * 60 + Number(sw.value.slice(3));
+    if (1440 + w - (b < 720 ? 1440 + b : b) <= 0) { toast('Kalkış yatıştan sonra olmalı', { kind: 'warn' }); const d = sleepDef(); sb.value = d.bed; sw.value = d.wake; return; }
+    setSleepDef({ bed: sb.value, wake: sw.value });
+  };
+  sb.onchange = updS; sw.onchange = updS;
   const showC = toggle(s.showCoursesInMonth, (v) => { s.showCoursesInMonth = v; commit('settings'); }, 'Ay ve ajanda görünümünde dersleri de göster');
 
   return section('saatler', 'clock', 'Gün saatleri', [
@@ -392,7 +405,12 @@ function hoursSection() {
         h('div', { class: 'hr-pair task' },
           h('span', { class: 'hr-pair-h' }, 'Görevleri boşluklara yerleştirirken'),
           h('div', { class: 'grid-2' }, field('En erken', fs), field('En geç', fe)),
-          h('span', { class: 'field-hint' }, 'Boş zaman ararken bu aralığın dışına koymaz')))),
+          h('span', { class: 'field-hint' }, 'Boş zaman ararken bu aralığın dışına koymaz')),
+        h('div', { class: 'hr-pair sleep' },
+          h('span', { class: 'hr-pair-h' }, 'Varsayılan uyku'),
+          h('div', { class: 'grid-2' }, field('Yatış', sb), field('Kalkış', sw)),
+          h('span', { class: 'field-hint' }, 'Değiştirmediğin her gece bu saatlerle sayılır. Bir geceyi değiştirmek için kadrandaki ya da takvimdeki uyku dilimine dokun. ',
+            h('button', { type: 'button', class: 'linkish', onclick: () => openSleepPanel() }, 'Uyku düzenini gör'))))),
     showC.el,
   ]);
 }

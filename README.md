@@ -84,7 +84,7 @@ Her şey yalnız bu tarayıcıda durur. Tarayıcı verisi silinirse ya da telefo
 |---|---|
 | Her şey | Cihazının tarayıcısında (`localStorage`) |
 | Planlar | Google'a bağlıysan Google Takvim'inde de (seçtiğin takvimde) |
-| Dersler, görevler, ödevler, devamsızlık, unutma notları, defter, kadran arşivi, kategoriler | Google'a bağlıysan Google Drive'ındaki gizli uygulama klasöründe tek bir dosyada. Bu klasörü yalnız Vazifedar görür; Drive'ında dosya olarak çıkmaz. |
+| Dersler, görevler, ödevler, devamsızlık, unutma notları, defter, kadran arşivi, uyku saatleri, kategoriler | Google'a bağlıysan Google Drive'ındaki gizli uygulama klasöründe tek bir dosyada. Bu klasörü yalnız Vazifedar görür; Drive'ında dosya olarak çıkmaz. |
 | Görünüm, bildirim, namaz vakti ayarları | Yalnız o cihazda |
 
 Uygulamanın sitesinde (GitHub Pages) yalnızca **kod** var; veri yok.
@@ -236,6 +236,16 @@ Kadran arşivi ve günlüktür.
 - **Pullar** görünümünde geçen her güne, o gün en çok zaman ayırdığın şeyin pulu basılır.
 - Defter Google Takvim'e gitmez. Google bağlıysa gizli Drive klasörüne, ayrıca yedeğine girer.
 
+### Uyku
+
+Her gece için bir yatış ve kalkış saati vardır. Değiştirmediğin geceler **varsayılan uyku** saatleriyle sayılır (başlangıçta 00:00–07:00); değiştirdiğin geceler aynen kalır.
+
+- **Varsayılanı değiştirmek**: Ayarlar → Gün saatleri → **Varsayılan uyku**, ya da Uyku düzeni penceresinin altından.
+- **Bir geceyi değiştirmek**: Bugün ekranındaki **Uyku** kartında "Dün gece" ya da "Bu gece" satırına, kadrandaki gri uyku dilimine ya da takvimdeki çizgili uyku şeridine dokun. Yatış ve kalkışı yaz, **Kaydet**. Gece yarısından sonra yatıyorsan (01:30 gibi) öyle yaz; ertesi güne sayılır. **Varsayılana döndür** o geceyi eski hâline getirir.
+- **Uyku düzeni**: Uyku kartındaki **Uyku düzeni** (ya da küçük çubuklar) son 7 / 14 / 30 geceyi çubuk çubuk gösterir: koyu çubuklar senin girdiğin geceler, çizgili olanlar varsayılan. Üstte ortalama uyku süresi, ortalama yatış ve kalkış ve saatlerin ne kadar oynadığı (düzenli / biraz oynak / dağınık) yazar. Bir geceye dokunup düzeltebilirsin.
+- Kadranın uyku dilimi, takvimdeki uyku şeridi ve günlerin küçük halkaları o günün uykusuna göre çizilir. Boş zaman ararken (görevi boşluğa koyarken) uyku saatleri dolu sayılır.
+- Uyku saatleri Google Takvim'e gitmez; Google bağlıysa gizli Drive klasörüyle öbür cihazlarına geçer.
+
 ### Arama
 
 Büyüteç, `Ctrl+K` ya da `F` arama penceresini açar. Planlarda, görevlerde, derslerde, notlarda ve defterde birlikte arar. Türkçe harflere takılmaz: "halisaha" yazsan da "Halısaha"yı bulur. "15 kasım" ya da "cuma" gibi tarihle de arayabilirsin. Bir sonuca dokunmak onu açar, takvim simgesi takvimde o haftaya götürür.
@@ -366,6 +376,7 @@ js/quickadd.js        Hızlı ekleme ayrıştırıcısı (Türkçe tarih/saat/te
 js/qa-ui.js           Hızlı ekleme kutusu
 js/search.js          Arama
 js/settings.js        Ayarlar
+js/sleep.js           Uyku: varsayılan ve gün gün uyku saatleri, uyku düzeni penceresi, Bugün kartı
 js/google.js          Google Takvim eşitlemesi (OAuth + Calendar API, ödev teslimleri, ders programı)
 js/cloud.js           Drive'daki gizli klasörle eşitleme (dersler, görevler, notlar, defter…)
 js/backup.js          Otomatik yedek

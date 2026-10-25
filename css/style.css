@@ -1764,3 +1764,94 @@ button.tcard:hover { filter: brightness(1.05); }
 .abs-hour.on { border-color: var(--red); background: color-mix(in srgb, var(--red) 12%, var(--surface)); }
 .abs-hour.on b { color: var(--red); }
 .abs-hour.on b::before { content: '✕ '; }
+
+/* =====================================================================
+   Uyku (sleep.js): varsayılan + gün gün uyku saatleri
+   ===================================================================== */
+:root { --sleep: #3D4494; --on-sleep: #FFFFFF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sleep: #9AA3F5; --on-sleep: #13162B; } }
+:root[data-theme="dark"] { --sleep: #9AA3F5; --on-sleep: #13162B; }
+
+/* Kadrandaki uyku dilimi dokunulabilir */
+.d-night { cursor: pointer; transition: fill .15s; }
+.d-night:hover, .d-night:focus-visible { fill: color-mix(in srgb, var(--sleep) 26%, var(--surface)); outline: none; }
+
+/* Takvim sütununda uyku şeridi */
+.sleep-band {
+  position: absolute; left: 0; right: 0; z-index: 0; border: 0; padding: 3px 6px; margin: 0; cursor: pointer; text-align: left;
+  display: flex; align-items: flex-start; font: inherit;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sleep) 9%, transparent) 0 6px, color-mix(in srgb, var(--sleep) 4%, transparent) 6px 12px);
+  border-top: 1.5px solid color-mix(in srgb, var(--sleep) 28%, transparent);
+}
+.sleep-band.morn { align-items: flex-end; border-top: 0; border-bottom: 1.5px solid color-mix(in srgb, var(--sleep) 28%, transparent); }
+.sleep-band.set { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sleep) 16%, transparent) 0 6px, color-mix(in srgb, var(--sleep) 8%, transparent) 6px 12px); }
+.sleep-band:hover { background-color: color-mix(in srgb, var(--sleep) 8%, transparent); }
+.sb-t { font-size: 11px; font-weight: 500; color: color-mix(in srgb, var(--sleep) 85%, var(--ink)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 3px; }
+
+/* Bugün kartı */
+.sleep-card .card-head h3 { display: inline-flex; align-items: center; gap: 6px; }
+.sl-moon { color: var(--sleep); }
+.sleep-card .link:hover { color: var(--ink); }
+.sl-lines { display: flex; flex-direction: column; }
+.sl-line {
+  display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: baseline; width: 100%; text-align: left;
+  border: 0; border-top: 2px solid var(--line-soft); background: none; padding: 9px 0; font: inherit; color: var(--ink); cursor: pointer;
+}
+.sl-line:first-child { border-top: 0; }
+.sl-l { font-size: 13px; color: var(--muted); }
+.sl-v { font-family: var(--display); font-weight: 600; font-size: 15px; }
+.sl-d { font-size: 13.5px; color: var(--muted); }
+.sl-line:hover .sl-v { text-decoration: underline; text-underline-offset: 3px; }
+.sl-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 64px; border: 0; background: none; padding: 0; cursor: pointer; }
+.sl-mb { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; min-width: 0; }
+.sl-mb i { width: 100%; max-width: 26px; border-radius: 6px 6px 3px 3px; min-height: 3px; background: color-mix(in srgb, var(--sleep) 30%, var(--surface)); }
+.sl-mb.set i { background: var(--sleep); }
+.sl-mb small { font-size: 10.5px; color: var(--muted); }
+
+/* Uyku düzeni penceresi */
+.sl-panel { display: flex; flex-direction: column; gap: 14px; }
+.sl-panel h3 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; }
+.sl-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.sl-tiles div { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-2); border: 2px solid var(--line-soft); min-width: 0; }
+.sl-tiles b { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--sleep); line-height: 1.2; }
+.sl-tiles span { font-size: 12px; color: var(--muted); }
+.sl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.sl-chart { display: flex; flex-direction: column; gap: 3px; }
+.sl-row, .sl-axis { display: grid; grid-template-columns: 78px minmax(0, 1fr) 50px; gap: 8px; align-items: center; }
+.sl-row { width: 100%; border: 0; background: none; padding: 3px 4px; border-radius: 10px; font: inherit; color: var(--ink); cursor: pointer; text-align: left; }
+.sl-row:hover { background: var(--surface-2); }
+.sl-day { display: flex; flex-direction: column; font-size: 12.5px; font-weight: 500; line-height: 1.15; }
+.sl-day small { font-size: 11px; color: var(--muted); font-weight: 400; }
+.sl-track { position: relative; height: 24px; border-radius: 999px; background: var(--line-soft); }
+.sl-track::before { content: ''; position: absolute; top: 0; bottom: 0; left: var(--def-a); right: calc(100% - var(--def-b)); border-radius: 999px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sleep) 25%, transparent); }
+.sl-bar {
+  position: absolute; top: 2px; bottom: 2px; border-radius: 999px; background: var(--sleep); color: var(--on-sleep);
+  display: flex; justify-content: space-between; align-items: center; padding: 0 7px; min-width: 8px; overflow: hidden;
+}
+.sl-row.def .sl-bar {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--sleep) 34%, var(--surface)) 0 6px, color-mix(in srgb, var(--sleep) 22%, var(--surface)) 6px 12px);
+  color: color-mix(in srgb, var(--sleep) 70%, var(--ink));
+}
+.sl-row.plan .sl-bar { background: none; box-shadow: inset 0 0 0 2px var(--sleep); color: var(--sleep); }
+.sl-row.plan.set .sl-bar { background: color-mix(in srgb, var(--sleep) 14%, var(--surface)); }
+.sl-t { font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.sl-dur { font-size: 12.5px; color: var(--muted); text-align: right; white-space: nowrap; }
+.sl-row.set .sl-dur { color: var(--ink); font-weight: 500; }
+.sl-ticks { position: relative; height: 16px; }
+.sl-ticks i { position: absolute; transform: translateX(-50%); font-style: normal; font-size: 10.5px; color: var(--muted); }
+.sl-tip { margin: -6px 0 0; }
+.sl-defbox { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--r-md); background: var(--surface-2); border: 2px solid var(--line-soft); }
+.sl-defbox p { margin: 4px 0 0; }
+.sl-edit { display: flex; flex-direction: column; gap: 12px; }
+.sl-sum { margin: 0; display: inline-flex; align-items: center; gap: 4px; font-family: var(--display); font-weight: 600; font-size: 15px; color: var(--sleep); }
+.sl-sum.bad { color: var(--red); }
+.sl-def { margin: 0; }
+.hr-pair.sleep { border-left-color: var(--sleep); }
+@media (max-width: 560px) {
+  .sl-tiles { grid-template-columns: 1fr 1fr; }
+  .sl-row, .sl-axis { grid-template-columns: 58px minmax(0, 1fr) 42px; gap: 6px; }
+  .sl-day { font-size: 11.5px; }
+  .sl-t { font-size: 10px; }
+  .sl-bar { padding: 0 5px; }
+}
+@media (prefers-reduced-motion: reduce) { .d-night { transition: none; } }

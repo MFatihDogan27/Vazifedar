@@ -22,7 +22,7 @@ import { registerSW } from './pwa.js';
 import { initUpdates } from './update.js';
 import { openOnboarding } from './onboarding.js';
 
-const CLOUD_REASONS = new Set(['tasks', 'courses', 'notes', 'journal', 'archive', 'settings', 'import']);
+const CLOUD_REASONS = new Set(['tasks', 'courses', 'notes', 'journal', 'archive', 'sleep', 'settings', 'import']);
 const UI_KEY = 'vazifedar:ui2';
 const ui = (() => {
   let saved = {};
@@ -224,7 +224,7 @@ subscribe((reason, opts) => {
   // Görev, ders, not değişiklikleri Google Drive üzerinden diğer cihazlara
   if (CLOUD_REASONS.has(reason)) G.scheduleCloud();
   // Ayarlar sayfasında yazarken sayfa yeniden çizilmesin
-  if (reason === 'settings' && ui.view === 'settings') { renderSync(); return; }
+  if ((reason === 'settings' || reason === 'sleep') && ui.view === 'settings') { renderSync(); return; }
   // Yazarken arka plandan gelen değişiklik sayfayı yeniden çizmesin (yazı kutusu baştan kurulur,
   // imleç ve klavye kaybolur); çizim yazmayı bırakınca yapılır
   if (writingJournal() || (BG_REASONS.has(reason) && typingInView())) { renderHeld = true; renderNav(); renderSync(); return; }

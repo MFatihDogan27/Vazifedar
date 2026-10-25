@@ -12,6 +12,7 @@ import { VAKITLER, prayerEnabled, prayerSettings, timesFor, prayerNow, locationL
 import { bagCard, bagMode, pinsForOcc } from './notes.js';
 import { journalPrompt } from './journal.js';
 import { textureKey, svgPattern, themedCard } from './themes.js';
+import { sleepSpans, nightsInRange, openNight, sleepCard } from './sleep.js';
 
 export function termWeek(date) {
   const { start, end } = state.term;
@@ -39,7 +40,7 @@ function longestGap(timed, now) {
   const r = cursor.getMinutes() % 5; if (r) cursor = addMinutes(cursor, 5 - r);
   cursor.setSeconds(0, 0);
   let best = null;
-  const busy = timed.filter((o) => o.end > cursor && o.start < winEnd).sort((a, b) => a.start - b.start);
+  const busy = [...timed, ...nightsInRange(day, addDays(day, 1))].filter((o) => o.end > cursor && o.start < winEnd).sort((a, b) => a.start - b.start);
   for (const o of busy) {
     if (o.start > cursor) {
       const g = { start: cursor, end: new Date(Math.min(o.start, winEnd)) };
@@ -78,7 +79,6 @@ const star8 = (cx, cy, r) => {
 const closedShown = new Map();
 
 function buildDial(day, now, timed, gap, prayers = [], pins = new Map(), sun = null) {
-  const sh = state.settings.dayStartHour ?? 7, eh = state.settings.dayEndHour ?? 24;
   const ang = (hr) => ((hr / 24) * 360 + 180) * Math.PI / 180;
   const P = (hr, r) => [Math.sin(ang(hr)) * r, -Math.cos(ang(hr)) * r];
   const f = (n) => n.toFixed(2);
@@ -99,9 +99,18 @@ function buildDial(day, now, timed, gap, prayers = [], pins = new Map(), sun = n
   const uid = Math.random().toString(36).slice(2, 7);
   // Yüzük ve uyku dilimi
   svg.append(svgEl('path', { d: sector(0, 23.999, RI, RO), class: 'd-track' }));
-  if (sh > 0) svg.append(svgEl('path', { d: sector(0, sh, RI, RO), class: 'd-night' }));
-  if (eh < 24) svg.append(svgEl('path', { d: sector(eh, 24, RI, RO), class: 'd-night' }));
-  if (sh >= 2) { const [x, y] = P(sh / 2, (RI + RO) / 2); svg.append(svgEl('text', { x: f(x), y: f(y + 4), class: 'd-night-t' }, 'uyku')); }
+  // Uyku: o günün gecelerinden (gün gün ayarlanır; değiştirilmemişse varsayılan saatler). Dokununca düzenlenir.
+  const spans = sleepSpans(day);
+  for (const sp of spans) {
+    const a = sp.a / 60, b = Math.min(23.999, sp.b / 60);
+    const p = svgEl('path', { d: sector(a, b, RI, RO), class: 'd-night', tabindex: '0', role: 'button', 'aria-label': `Uyku ${timeStr(sp.n.start)}–${timeStr(sp.n.end)}, değiştir` });
+    p.append(svgEl('title', {}, `Uyku ${timeStr(sp.n.start)}–${timeStr(sp.n.end)}\nDeğiştirmek için dokun`));
+    p.addEventListener('click', () => openNight(sp.n.key));
+    p.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNight(sp.n.key); } });
+    svg.append(p);
+  }
+  const big = spans.slice().sort((x, y) => (y.b - y.a) - (x.b - x.a))[0];
+  if (big && big.b - big.a >= 120) { const [x, y] = P((big.a + big.b) / 120, (RI + RO) / 2); svg.append(svgEl('text', { x: f(x), y: f(y + 4), class: 'd-night-t' }, 'uyku')); }
   // Saat çizgileri ve rakamlar
   for (let hr = 0; hr < 24; hr++) {
     const [x1, y1] = P(hr, RO + 8), [x2, y2] = P(hr, RO + (hr % 3 ? 13 : 20));
@@ -237,6 +246,9 @@ function buildDial(day, now, timed, gap, prayers = [], pins = new Map(), sun = n
   }
   // Şimdi: geçen kısım ve ibre
   const nh = hrOf(now);
+  // Uyanık geçen kısım: sabah kalkıştan şimdiye (gece yatışında durur)
+  const sh = (spans.find((x) => x.b < 1440)?.b ?? 0) / 60;             // bu sabahki kalkış
+  const eh = (spans.find((x) => x.b >= 1440 && x.a > 0)?.a ?? 1440) / 60; // bu geceki yatış (gece yarısından önceyse)
   if (nh > sh) svg.append(svgEl('path', { d: arcPath(sh, Math.min(nh, eh), RO + 26), class: 'd-progress' }));
   const [nx0, ny0] = P(nh, 132), [nx, ny] = P(nh, RO + 4);
   svg.append(svgEl('line', { x1: f(nx0), y1: f(ny0), x2: f(nx), y2: f(ny), class: 'd-needle' }));
@@ -398,7 +410,7 @@ export function renderToday(root, { onWeek, onCourses, onTasks, onJournal } = {}
   if (!refresh) hero.querySelector('.dial')?.classList.add('intro');
   root.replaceChildren(h('div', { class: 'today-view' },
     hero,
-    h('div', { class: 'today-side' }, evening ? bag : null, cdSec, evening ? null : bag, flow, absCard),
+    h('div', { class: 'today-side' }, evening ? bag : null, cdSec, evening ? null : bag, flow, sleepCard(now), absCard),
     rack,
     weekSummary(now)));
 }

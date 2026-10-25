@@ -12,6 +12,7 @@ import { ic } from './icons.js';
 import { prayerEnabled, prayerSettings, prayersInRange } from './prayer.js';
 import { ring, dayData } from './journal.js';
 import { hijri, holyDay, moonPhaseOn, moonGlyph, HICRI_AYLAR } from './hicri.js';
+import { sleepSpans, nightsInRange, openNight } from './sleep.js';
 
 // Telefonda haftalık görünüm "mercek" düzenine geçer: üstte haftanın 7 gün halkası, altında yan yana
 // kayan gün sütunları (ekranda tek gün, kaydırınca öteki gün). Şeritteki mercek o an görünen günün üstünde durur.
@@ -198,7 +199,7 @@ const STAPLE = `<svg viewBox="0 0 26 10" aria-hidden="true"><path class="s-out" 
 function dayHeadRing(d, today) {
   const data = dayData(toDateKey(d));
   const min = data.segs.reduce((a, s) => a + (s.b - s.a), 0);
-  const wrap = h('span', { class: 'wk-dd', title: min ? `${Math.round(min / 6) / 10} saat dolu` : 'Boş gün' }, ring(data.segs, { thin: true }), h('b', {}, d.getDate()));
+  const wrap = h('span', { class: 'wk-dd', title: min ? `${Math.round(min / 6) / 10} saat dolu` : 'Boş gün' }, ring(data.segs, { thin: true, day: toDateKey(d) }), h('b', {}, d.getDate()));
   if (sameDay(d, today)) {
     // Şimdi: halkanın üstünde küçük bir ibre ucu
     const a = ((today.getHours() * 60 + today.getMinutes()) / 1440) * 360 + 180;
@@ -306,9 +307,23 @@ export function renderWeek(root, anchor) {
           h('span', {}, `${p.name} ${timeStr(p.at)}`)));
       }
     }
-    // Boşluk cepleri: 1 saatten uzun boş zamanlar, tıklayınca görev ya da plan konur
+    // Uyku: o günün gecesi (gün gün ayarlanır). Sıkışık uyku şeridinde de görünür; dokununca düzenlenir.
+    for (const sp of sleepSpans(d)) {
+      const top = ax.yOf(sp.a), height = ax.yOf(sp.b) - top;
+      if (height < 4) continue;
+      const ends = sp.b < 1440, starts = sp.a > 0; // kalkış bu günde mi, yatış bu günde mi
+      const label = starts && ends ? ` ${timeStr(sp.n.start)}–${timeStr(sp.n.end)}` : ends ? ` kalkış ${timeStr(sp.n.end)}` : ` yatış ${timeStr(sp.n.start)}`;
+      col.append(h('button', {
+        type: 'button', class: `sleep-band ${ends ? 'morn' : 'eve'} ${sp.n.set ? 'set' : ''} ${height < 22 ? 'thin' : ''}`,
+        style: { top: `${top}px`, height: `${height}px` },
+        title: `Uyku ${timeStr(sp.n.start)}–${timeStr(sp.n.end)} · değiştirmek için tıkla`,
+        'aria-label': `Uyku ${timeStr(sp.n.start)}–${timeStr(sp.n.end)}, değiştir`,
+        onclick: (e) => { e.stopPropagation(); openNight(sp.n.key); },
+      }, height >= 22 ? h('span', { class: 'sb-t' }, ic('moon', { size: 12 }), label) : null));
+    }
+    // Boşluk cepleri: 1 saatten uzun boş zamanlar, tıklayınca görev ya da plan konur (uyku dolu sayılır)
     if (dayEnd > today) {
-      for (const g of dayGaps(d, timed, today)) {
+      for (const g of dayGaps(d, [...timed, ...nightsInRange(d0, dayEnd)], today)) {
         const top = yAt(g.start), height = yAt(g.end) - top;
         if (height < 18) continue;
         const mins = Math.round((g.end - g.start) / 60000);
