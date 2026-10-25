@@ -16,7 +16,14 @@ export function mountQuickAdd(slot) {
   });
   const preview = h('div', { class: 'qa-preview', role: 'status', 'aria-live': 'polite', hidden: true });
   const box = h('div', { class: 'qa' }, h('span', { class: 'qa-plus', 'aria-hidden': 'true' }, '+'), input, h('kbd', { class: 'qa-kbd', title: 'Kısayol' }, '/'), preview);
-  slot.replaceChildren(box);
+  // Telefonda kutu yer kaplamasın: üst çubukta yalnız "+" simgesi durur, dokununca kutu açılır (CSS: .qa-open)
+  const opener = h('button', {
+    type: 'button', class: 'qa-open', 'aria-label': 'Hızlı ekle', title: 'Hızlı ekle', 'aria-expanded': 'false',
+    onclick: () => { if (slot.classList.contains('open')) close(); else open(); },
+  }, ic('plus', { size: 20 }));
+  slot.replaceChildren(opener, box);
+  function open() { slot.classList.add('open'); opener.setAttribute('aria-expanded', 'true'); input.focus(); }
+  function close() { slot.classList.remove('open'); opener.setAttribute('aria-expanded', 'false'); }
 
   let parsed = null;
   const course = (id) => state.courses.find((c) => c.id === id);
@@ -98,14 +105,18 @@ export function mountQuickAdd(slot) {
     toast(`Eklendi: ${ev.title}, ${when}`, { ms: 5000, action: { label: 'Geri al', onClick: () => deleteEvent(ev.id) } });
   }
 
-  function clear() { input.value = ''; preview.hidden = true; parsed = null; }
+  function clear() { input.value = ''; preview.hidden = true; parsed = null; close(); }
 
   input.addEventListener('input', render);
   input.addEventListener('focus', render);
-  input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) preview.hidden = true; }, 150));
+  input.addEventListener('blur', () => setTimeout(() => {
+    if (document.activeElement === input) return;
+    preview.hidden = true;
+    if (!input.value.trim() && document.activeElement !== opener) close();
+  }, 150));
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); submit(e.shiftKey); }
     else if (e.key === 'Escape') { clear(); input.blur(); }
   });
-  return { focus: () => input.focus() };
+  return { focus: open };
 }

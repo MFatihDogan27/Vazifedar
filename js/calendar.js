@@ -24,6 +24,7 @@ let moSel = null;       // telefonda ayda seçili gün ('YYYY-MM-DD')
 export function forgetWeekPos() { narrowPos.ws = ''; narrowPos.left = null; }
 
 const PX_PER_HOUR = 52;  // dolu saat
+const PX_PER_HOUR_NARROW = 40; // telefonda dolu saat (52'de bir saatlik kayıt ekranda çok yer kaplıyordu)
 const QUIET_PX = 20;     // haftanın hiçbir gününde kaydı olmayan saat (esnek eksen)
 const SLEEP_PX = 30;     // uyku aralığının tamamı tek ince şerit (esnek eksen)
 
@@ -68,7 +69,7 @@ function markClashes(items) {
 // Esnek saat ekseni: dolu saatler geniş, haftanın hiçbir gününde kaydı olmayan saatler ince,
 // uyku aralığı tek bir gece şeridi. Düz eksende eskisi gibi her saat aynı boyda.
 // ---------------------------------------------------------------------------
-function timeAxis(items, ws, sh, eh, elastic) {
+function timeAxis(items, ws, sh, eh, elastic, pxHour = PX_PER_HOUR) {
   const busy = new Array(24).fill(false);
   for (const o of items) {
     if (o.allDay) continue;
@@ -99,7 +100,7 @@ function timeAxis(items, ws, sh, eh, elastic) {
   }
   let y = 0;
   for (const r of rows) {
-    if (r.type === 'busy') r.h = PX_PER_HOUR;
+    if (r.type === 'busy') r.h = pxHour;
     else if (r.type === 'quiet') r.h = QUIET_PX;
     else if (r.type === 'hidden') r.h = 0;
     r.top = y; y += r.h;
@@ -217,7 +218,8 @@ export function renderWeek(root, anchor) {
   const sh = state.settings.dayStartHour, eh = state.settings.dayEndHour;
   const elastic = state.settings.weekElastic !== false;
   const today = new Date();
-  const ax = timeAxis(items, ws, sh, eh, elastic);
+  const narrow = isNarrowWeek();
+  const ax = timeAxis(items, ws, sh, eh, elastic, narrow ? PX_PER_HOUR_NARROW : PX_PER_HOUR);
 
   // Haftalık özet
   const exams = items.filter((o) => o.kind === 'event' && o.categoryId === 'sinav').length;
@@ -226,14 +228,14 @@ export function renderWeek(root, anchor) {
   const summary = h('div', { class: 'week-summary' },
     exams ? h('span', { class: 'pill red' }, `${exams} sınav`) : null,
     h('span', { class: 'pill' }, `${plans} plan`),
-    courseMin ? h('span', { class: 'pill' }, `${String(Math.round(courseMin / 60 * 10) / 10).replace('.', ',')} saat ders`) : null,
-    clash.size ? h('span', { class: 'pill warn' }, `${clash.size} kayıt çakışıyor`) : null,
+    courseMin ? h('span', { class: 'pill' }, `${String(Math.round(courseMin / 60 * 10) / 10).replace('.', ',')} `, h('span', { class: 'lng' }, 'saat'), h('span', { class: 'shr' }, 'sa'), ' ders') : null,
+    clash.size ? h('span', { class: 'pill warn' }, `${clash.size} `, h('span', { class: 'lng' }, 'kayıt çakışıyor'), h('span', { class: 'shr' }, 'çakışma')) : null,
     h('span', { class: 'ws-gap' }),
     h('button', {
       type: 'button', class: `pill-tg ${elastic ? 'on' : ''}`, 'aria-pressed': String(elastic),
       title: elastic ? 'Boş saatler ince, uyku saatleri tek şerit. Düz eksene dönmek için tıkla.' : 'Her saat aynı boyda. Esnek eksene geçmek için tıkla.',
       onclick: () => setSetting('weekElastic', !elastic),
-    }, h('span', { class: 'tg-ic', 'aria-hidden': 'true' }), elastic ? 'Esnek' : 'Düz', h('span', { class: 'tg-more' }, ' eksen')));
+    }, h('span', { class: 'tg-ic', 'aria-hidden': 'true' }), elastic ? 'Esnek' : 'Düz', h('span', { class: 'tg-more' }, 'eksen')));
 
   const days = [...Array(7)].map((_, i) => addDays(ws, i));
 
@@ -362,7 +364,7 @@ export function renderWeek(root, anchor) {
     scroller.scrollTop = ax.yOf(target * 60) - (elastic ? 24 : 0) + extra;
   };
 
-  if (isNarrowWeek()) {
+  if (narrow) {
     // Telefonda tek gün göründüğü için bugün değilse o günün ilk kaydına kaydır
     const scrollToDay = (scroller, d) => {
       if (sameDay(d, today)) { scrollToNow(scroller); return; }

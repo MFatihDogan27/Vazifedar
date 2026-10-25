@@ -95,6 +95,7 @@ function renderNav() {
 }
 
 function renderToolbar() {
+  toolbarEl.dataset.view = ui.view; // telefonda takvim araç çubuğu ayrı dizilir (takvim.css)
   if (ui.view === 'calendar') {
     const seg = h('div', { class: 'seg', title: 'Ctrl + tekerlek ya da + / − ile yakınlaş/uzaklaş: Dönem ⇄ Ay ⇄ Hafta ⇄ Gün' }, [['month', 'Ay'], ['week', 'Hafta'], ['agenda', 'Ajanda']].map(([m, l]) => h('button', {
       class: `seg-btn ${ui.mode === m ? 'on' : ''}`, onclick: () => { ui.mode = m; saveUi(); render(); },

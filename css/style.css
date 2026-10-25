@@ -802,6 +802,29 @@ button.tc:hover { border-color: var(--ink); }
   .mo-chip .mo-time { display: none; }
   .week-stats div { min-width: 0; }
 }
+/* Telefonda üst çubuk: hızlı ekleme kutusu yer kaplamasın, aramanın yanında "+" simgesi olsun.
+   Dokununca kutu üst çubuğun altında, sayfanın üstüne açılır (qa-ui.js: .qa-slot.open). */
+.qa-open { display: none; }
+@media (max-width: 640px) {
+  .topbar { position: relative; flex-wrap: nowrap; padding: 10px 16px 0; gap: 8px; }
+  .brand-mark { width: 26px; height: 26px; }
+  .brand-name { font-size: 17px; }
+  .topbar .qa-slot { margin-left: auto; order: 0; flex: none; width: auto; min-width: 0; }
+  .topbar .qa-slot + .search-slot { margin-left: 0; }
+  .topbar .qa-slot.off + .search-slot { margin-left: auto; } /* Görevler'de + yok */
+  .qa-open {
+    display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; border: 0;
+    background: var(--hero); color: var(--on-hero); cursor: pointer; transition: transform .15s ease-out;
+  }
+  .qa-open .ic { stroke-width: 2.4; }
+  .qa-slot.open .qa-open { transform: rotate(45deg); background: var(--ink); color: var(--bg); }
+  .qa-slot .qa { display: none; }
+  .qa-slot.open .qa { display: flex; position: absolute; left: 16px; right: 16px; top: calc(100% + 8px); z-index: 60; box-shadow: var(--shadow); }
+  .topbar .search-btn { width: 38px; height: 38px; }
+  .topbar .sync-btn { width: 38px; height: 38px; }
+}
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) { .qa-open { transition: none; } }
+
 /* Telefonda Bugün: geri sayım kartları yan yana, haftalık sayılar satır satır (uzun gün adı taşmasın) */
 @media (max-width: 560px) {
   .today-side > .cd-blocks { grid-template-columns: 1fr 1fr; gap: 10px; }

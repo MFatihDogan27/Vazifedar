@@ -24,6 +24,7 @@
   border-radius: 999px; background: var(--surface); border: 2px solid var(--line); color: var(--muted);
 }
 .pill-tg:hover { color: var(--ink); }
+.week-summary .shr { display: none; } /* kısa yazı yalnız telefonda */
 .tg-ic { width: 28px; height: 16px; border-radius: 999px; background: var(--line); position: relative; flex: none; transition: background .15s; }
 .tg-ic::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); transition: left .15s; }
 .pill-tg.on { color: var(--ink); border-color: var(--hero); }
@@ -188,7 +189,8 @@ html[data-zoom="out"]::view-transition-new(vz-view) { animation-name: vz-new-out
 
 /* ---------- Telefonda hafta: "mercek" ----------
    Üstte 7 gün halkası (mercek o an görünen günün üstünde), altında yan yana kayan gün sütunları.
-   Ekranda tek gün durur (2,2 gün sığdırmak yazıları kesiyor, göz yoruyordu); yana kaydırınca öteki gün.
+   Ekranda tek gün durur (kullanıcı gün gün görmeyi seviyor; 2,2 günde yarım kalan sütun yazıları kesiyordu).
+   Yana kaydırınca öteki gün. Saat yüksekliği telefonda 40 px (calendar.js); 52'de her kayıt ekranı kaplıyordu.
    Başlık ve saat cetveli kaydırırken yerinde kalır. */
 .week.narrow { container-type: inline-size; overflow: hidden; }
 .week.narrow .wk-strip { position: relative; display: grid; grid-template-columns: repeat(7, 1fr); padding: 8px 0 6px; border-bottom: 2px solid var(--line-soft); }
@@ -212,7 +214,7 @@ html[data-zoom="out"]::view-transition-new(vz-view) { animation-name: vz-new-out
 .week.narrow .wk-cols { grid-template-columns: repeat(7, 1fr); }
 .week.narrow .wk-gutter.hours { position: sticky; left: 0; z-index: 25; background: var(--surface); }
 .week.narrow .wk-col { scroll-snap-align: start; }
-.wk-ch { scroll-snap-align: start; min-width: 0; padding: 7px 12px 7px 12px; border-left: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; cursor: copy; }
+.wk-ch { scroll-snap-align: start; min-width: 0; padding: 6px 8px; border-left: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; cursor: copy; }
 .wk-ch.today { background: linear-gradient(var(--today), var(--today)), var(--surface); }
 .wk-ch-t { display: flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12.5px; color: var(--muted); min-width: 0; pointer-events: none; }
 .wk-ch-t b { flex: none; font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--ink); }
@@ -223,11 +225,10 @@ html[data-zoom="out"]::view-transition-new(vz-view) { animation-name: vz-new-out
 .wk-ch .ad-chip { max-width: 100%; align-self: flex-start; font-size: 12px; }
 .wk-ch .wk-break, .wk-ch .wk-holy { align-self: flex-start; display: inline-block; }
 /* Geniş sütunda kayıtlar: ad iki satıra kadar, saat ve yer görünür */
-.week.narrow .ev { font-size: 13px; padding: 5px 9px; border-radius: 10px; }
+.week.narrow .ev { font-size: 12.5px; padding: 4px 8px; border-radius: 9px; }
 .week.narrow .ev-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.22; }
 .week.narrow .ev.short .ev-title { -webkit-line-clamp: 1; }
-.week.narrow .ev-meta { display: block; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.week.narrow .pr-mark span { display: inline; }
+.week.narrow .ev-meta { display: block; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .week.narrow .gap-chip { font-size: 11px; padding: 0 8px; }
 .week.narrow .ev-stamp.pul, .week.narrow .ev-stamp.seal { display: grid; }
 @media (prefers-reduced-motion: reduce) { .wk-lens { transition: none; } }
@@ -257,9 +258,29 @@ html[data-zoom="out"]::view-transition-new(vz-view) { animation-name: vz-new-out
   .week-summary .pill-tg { flex: none; font-size: 12px; padding: 2px 8px 2px 4px; }
   .pill-tg .tg-more { display: none; }
   /* Gün sütunu başlığı: tek satır */
-  .week.narrow .wk-ch-t { font-size: 13px; }
-  .week.narrow .wk-ch-t b { font-size: 14px; }
-  .week.narrow .wk-strip { padding: 6px 0 4px; }
+  .week.narrow .wk-ch-t { font-size: 12.5px; }
+  .week.narrow .wk-ch-t b { font-size: 13px; }
+  .week.narrow .wk-strip { padding: 4px 0 2px; }
+  .week.narrow .wk-strip .wk-dd { width: 32px; height: 32px; }
+  .week.narrow .wk-strip .wk-dd b { width: 22px; height: 22px; font-size: 12px; }
+  .week.narrow .wk-sd .wk-dn { font-size: 11px; }
+  .week.narrow .wk-ch { padding: 4px 8px; gap: 3px; }
+
+  /* Takvim araç çubuğu telefonda iki ince satır: [Ay Hafta Ajanda] … [Bugün ‹ ›], altında başlık.
+     "+ Plan ekle" yok: üst çubuktaki "+" (hızlı ekle) ve boş saate dokunmak aynı işi görüyor. */
+  .toolbar[data-view="calendar"] { padding: 8px 16px 4px; gap: 6px; }
+  .toolbar[data-view="calendar"] .tb-left, .toolbar[data-view="calendar"] .tb-right { display: contents; }
+  .toolbar[data-view="calendar"] .seg { order: 1; flex: none; display: inline-flex; }
+  .toolbar[data-view="calendar"] .seg-btn { flex: none; padding: 4px 11px; font-size: 13px; }
+  .toolbar[data-view="calendar"] .tb-left > .btn { order: 2; margin-left: auto; padding: 4px 11px; font-size: 13px; }
+  .toolbar[data-view="calendar"] .nav-arrows { order: 3; }
+  .toolbar[data-view="calendar"] .nav-arrows .icon-btn { width: 32px; height: 32px; font-size: 18px; }
+  .toolbar[data-view="calendar"] .tb-title { order: 4; flex: 1 1 100%; width: 100%; font-size: 16px; margin: 0; }
+  .toolbar[data-view="calendar"] .tb-add { display: none; }
+}
+@media (max-width: 640px) {
+  .week-summary .lng { display: none; }
+  .week-summary .shr { display: inline; }
 }
 
 /* ---------- Telefonda ay: yazısız hücreler + seçili günün listesi ---------- */
